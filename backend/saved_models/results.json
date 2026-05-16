@@ -1,0 +1,22 @@
+{
+  "MLP": {
+    "MAE": 9077.76,
+    "RMSE": 10888.43,
+    "MAPE": 9.26
+  },
+  "SARIMA": {
+    "MAE": 6175.69,
+    "RMSE": 7427.84,
+    "MAPE": 6.6
+  },
+  "Holt-Winters": {
+    "MAE": 7086.04,
+    "RMSE": 9201.22,
+    "MAPE": 7.52
+  },
+  "Linear Regression": {
+    "MAE": 8380.91,
+    "RMSE": 9498.27,
+    "MAPE": 8.5
+  }
+}
