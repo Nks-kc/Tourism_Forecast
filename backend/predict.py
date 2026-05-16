@@ -61,36 +61,51 @@ def predict_all(horizon: int) -> dict:
 
     mlp_path = os.path.join(SAVED_MODELS_DIR, "mlp.npz")
     if os.path.exists(mlp_path):
-        mlp         = MLP.load(mlp_path)
-        X_future    = future_df[FEATURE_COLS].values
-        X_future_sc = (X_future - scalers["feat"]["mean"]) / scalers["feat"]["std"]
-        y_sc        = mlp.predict(X_future_sc).flatten()
-        y_raw       = y_sc * scalers["tgt"]["std"] + scalers["tgt"]["mean"]
-        predictions["MLP"] = {"months": future_dates, "arrivals": [max(0, round(float(v))) for v in y_raw]}
+        try:
+            mlp         = MLP.load(mlp_path)
+            X_future    = future_df[FEATURE_COLS].values
+            X_future_sc = (X_future - scalers["feat"]["mean"]) / scalers["feat"]["std"]
+            y_sc        = mlp.predict(X_future_sc).flatten()
+            y_raw       = y_sc * scalers["tgt"]["std"] + scalers["tgt"]["mean"]
+            predictions["MLP"] = {"months": future_dates, "arrivals": [max(0, round(float(v))) for v in y_raw]}
+        except Exception as e:
+            print(f"  Skipping MLP prediction: {e}")
 
     sarima_path = os.path.join(SAVED_MODELS_DIR, "sarima.pkl")
     if os.path.exists(sarima_path):
-        sarima = SARIMAModel()
-        sarima.load(sarima_path)
-        exog_future = future_df[["is_spring_trek", "is_autumn_trek", "is_monsoon", "is_covid"]].values
-        y_raw = sarima.predict(steps=horizon, exog_future=exog_future)
-        predictions["SARIMA"] = {"months": future_dates, "arrivals": [max(0, round(float(v))) for v in y_raw]}
+        try:
+            sarima = SARIMAModel()
+            sarima.load(sarima_path)
+            exog_future = future_df[["is_spring_trek", "is_autumn_trek", "is_monsoon", "is_covid"]].values
+            y_raw = sarima.predict(steps=horizon, exog_future=exog_future)
+            predictions["SARIMA"] = {"months": future_dates, "arrivals": [max(0, round(float(v))) for v in y_raw]}
+        except Exception as e:
+            print(f"  Skipping SARIMA prediction: {e}")
 
     hw_path = os.path.join(SAVED_MODELS_DIR, "holtwinters.pkl")
     if os.path.exists(hw_path):
-        hw    = HoltWintersModel()
-        hw.load(hw_path)
-        y_raw = hw.predict(steps=horizon)
-        predictions["Holt-Winters"] = {"months": future_dates, "arrivals": [max(0, round(float(v))) for v in y_raw]}
+        try:
+            hw    = HoltWintersModel()
+            hw.load(hw_path)
+            y_raw = hw.predict(steps=horizon)
+            predictions["Holt-Winters"] = {"months": future_dates, "arrivals": [max(0, round(float(v))) for v in y_raw]}
+        except Exception as e:
+            print(f"  Skipping Holt-Winters prediction: {e}")
 
     lr_path = os.path.join(SAVED_MODELS_DIR, LR_MODEL_FILENAME)
     if os.path.exists(lr_path):
-        lr          = LinearRegressionModel.load(lr_path)
-        X_future    = future_df[FEATURE_COLS].values
-        X_future_sc = (X_future - scalers["feat"]["mean"]) / scalers["feat"]["std"]
-        y_sc        = lr.predict(X_future_sc).flatten()
-        y_raw       = y_sc * scalers["tgt"]["std"] + scalers["tgt"]["mean"]
-        predictions["Linear Regression"] = {"months": future_dates, "arrivals": [max(0, round(float(v))) for v in y_raw]}
+        try:
+            lr          = LinearRegressionModel.load(lr_path)
+            X_future    = future_df[FEATURE_COLS].values
+            X_future_sc = (X_future - scalers["feat"]["mean"]) / scalers["feat"]["std"]
+            y_sc        = lr.predict(X_future_sc).flatten()
+            y_raw       = y_sc * scalers["tgt"]["std"] + scalers["tgt"]["mean"]
+            predictions["Linear Regression"] = {"months": future_dates, "arrivals": [max(0, round(float(v))) for v in y_raw]}
+        except Exception as e:
+            print(f"  Skipping Linear Regression prediction: {e}")
+
+    if not predictions:
+        raise RuntimeError("No saved models could generate predictions. Re-run 'python train.py'.")
 
     return predictions
 

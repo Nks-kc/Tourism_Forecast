@@ -1,6 +1,6 @@
 import os
 import json
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 
 from auth.models  import init_db
@@ -16,6 +16,20 @@ app.config["JWT_SECRET_KEY"] = JWT_SECRET_KEY
 
 app.register_blueprint(auth_bp)
 init_db()
+
+FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+
+
+@app.route("/", methods=["GET"])
+def frontend_index():
+    return send_from_directory(FRONTEND_DIR, "index.html")
+
+
+@app.route("/<path:filename>", methods=["GET"])
+def frontend_file(filename):
+    if filename in {"index.html", "login.html", "register.html"}:
+        return send_from_directory(FRONTEND_DIR, filename)
+    return jsonify({"error": "Not found"}), 404
 
 
 @app.route("/health", methods=["GET"])

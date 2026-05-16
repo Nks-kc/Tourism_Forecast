@@ -1,0 +1,1214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nepal Tourism Forecast</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --bg2: #161c25;
+      --bg3: #1e2530;
+      --border: rgba(255, 255, 255, 0.08);
+      --border2: rgba(255, 255, 255, 0.14);
+      --text: #e8e6df;
+      --muted: #8b8982;
+      --faint: #3a3830;
+      --red: #c94040;
+      --red-light: #e86060;
+      --gold: #d4a847;
+      --gold-light: #f0c96a;
+      --teal: #3a8e7a;
+      --teal-light: #56b89f;
+      --blue: #3a6ea8;
+      --blue-light: #5b92cc;
+      --font-serif: "DM Serif Display", Georgia, serif;
+      --font-body: "Instrument Sans", system-ui, sans-serif;
+      --font-mono: "DM Mono", ui-monospace, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      height: 58px;
+      padding: 0 32px;
+      background: rgba(13, 17, 23, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-width: 220px;
+    }
+
+    .nav-emblem {
+      width: 32px;
+      height: 32px;
+      background: var(--red);
+      clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+      flex: 0 0 auto;
+    }
+
+    .nav-title {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      line-height: 1.1;
+    }
+
+    .nav-sub {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2px;
+      overflow-x: auto;
+    }
+
+    .nav-btn {
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: inline-block;
+      padding: 7px 13px;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .nav-btn:hover,
+    .nav-btn.active {
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--text);
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 64px 32px 54px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 60% 80% at 82% 42%, rgba(201, 64, 64, 0.09), transparent 70%),
+        radial-gradient(ellipse 42% 65% at 18% 82%, rgba(58, 142, 122, 0.08), transparent 70%);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.035;
+      background-image:
+        linear-gradient(var(--text) 1px, transparent 1px),
+        linear-gradient(90deg, var(--text) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    .hero-content {
+      position: relative;
+      max-width: 1140px;
+      margin: 0 auto;
+    }
+
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 18px;
+      border: 1px solid rgba(201, 64, 64, 0.35);
+      border-radius: 2px;
+      color: var(--red-light);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      padding: 4px 10px;
+      text-transform: uppercase;
+    }
+
+    .hero-tag::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--red);
+    }
+
+    h1 {
+      max-width: 680px;
+      font-family: var(--font-serif);
+      font-size: clamp(38px, 6vw, 64px);
+      font-weight: 400;
+      line-height: 1.05;
+      letter-spacing: 0;
+      margin-bottom: 16px;
+    }
+
+    h1 em {
+      color: var(--gold-light);
+    }
+
+    .hero-desc {
+      max-width: 590px;
+      color: var(--muted);
+      font-size: 15px;
+      margin-bottom: 30px;
+    }
+
+    .hero-stats,
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .hero-stat {
+      min-width: 0;
+    }
+
+    .hero-stat-value {
+      font-family: var(--font-serif);
+      font-size: 34px;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .hero-stat-label,
+    .stat-label,
+    .section-meta {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .section {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 34px 32px 46px;
+    }
+
+    .tab-bar {
+      display: flex;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+
+    .tab-btn {
+      border: 0;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      margin-bottom: -1px;
+      padding: 10px 20px;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover,
+    .tab-btn.active {
+      color: var(--text);
+      border-bottom-color: var(--red-light);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .stat-grid {
+      margin-bottom: 16px;
+    }
+
+    .stat-card,
+    .panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .stat-card {
+      padding: 16px 18px;
+    }
+
+    .stat-value {
+      font-family: var(--font-serif);
+      font-size: 28px;
+      line-height: 1;
+      margin: 8px 0 7px;
+    }
+
+    .stat-sub {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .up {
+      color: var(--teal-light);
+    }
+
+    .panel {
+      padding: 20px 22px;
+      margin-bottom: 16px;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .chip-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .chip,
+    .primary-btn,
+    .ghost-btn {
+      border-radius: 3px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .chip {
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      padding: 5px 10px;
+      text-transform: uppercase;
+    }
+
+    .chip:hover,
+    .chip.active {
+      border-color: rgba(58, 142, 122, 0.45);
+      background: rgba(58, 142, 122, 0.15);
+      color: var(--teal-light);
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 300px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .season-months {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 4px;
+      align-items: end;
+      min-height: 92px;
+    }
+
+    .season-month {
+      text-align: center;
+    }
+
+    .s-label {
+      display: block;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      margin-bottom: 5px;
+    }
+
+    .s-bar {
+      border-radius: 2px;
+    }
+
+    .s-peak {
+      background: var(--red);
+    }
+
+    .s-shoulder {
+      background: var(--gold);
+      opacity: 0.7;
+    }
+
+    .s-low {
+      background: var(--faint);
+    }
+
+    .legend {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+    }
+
+    .model-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .model-table th {
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      padding: 7px 10px;
+      text-align: left;
+      text-transform: uppercase;
+    }
+
+    .model-table td {
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      font-size: 12px;
+      padding: 11px 10px;
+      vertical-align: middle;
+    }
+
+    .model-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .badge {
+      border-radius: 2px;
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      padding: 2px 7px;
+    }
+
+    .badge-good {
+      background: rgba(58, 142, 122, 0.18);
+      color: var(--teal-light);
+    }
+
+    .badge-muted {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--muted);
+    }
+
+    .badge-warn {
+      background: rgba(212, 168, 71, 0.16);
+      color: var(--gold-light);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    input,
+    select {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg3);
+      color: var(--text);
+      outline: none;
+      padding: 10px 11px;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: rgba(86, 184, 159, 0.55);
+    }
+
+    .primary-btn,
+    .ghost-btn {
+      border: 1px solid var(--border2);
+      min-height: 40px;
+      padding: 9px 13px;
+      font-weight: 700;
+    }
+
+    .primary-btn {
+      background: var(--teal);
+      color: white;
+    }
+
+    .primary-btn:hover {
+      background: #2f7b69;
+    }
+
+    .ghost-btn {
+      background: transparent;
+      color: var(--text);
+    }
+
+    .ghost-btn:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .message {
+      color: var(--muted);
+      font-size: 12px;
+      min-height: 19px;
+    }
+
+    .message.error {
+      color: var(--red-light);
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    .prediction-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg3);
+      padding: 14px;
+    }
+
+    .prediction-card h3 {
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .prediction-list {
+      display: grid;
+      gap: 7px;
+      list-style: none;
+    }
+
+    .prediction-list li,
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .prediction-list strong,
+    .metric-row strong {
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .empty {
+      border: 1px dashed var(--border2);
+      border-radius: 6px;
+      color: var(--muted);
+      padding: 26px;
+      text-align: center;
+    }
+
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .about-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg2);
+      padding: 18px 20px;
+    }
+
+    .about-card h3 {
+      font-family: var(--font-serif);
+      font-size: 19px;
+      font-weight: 400;
+      margin-bottom: 8px;
+    }
+
+    .about-card p {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 24px 32px;
+      font-size: 12px;
+    }
+
+    @media (max-width: 900px) {
+      nav {
+        height: auto;
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 14px 20px;
+      }
+
+      .hero,
+      .section {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+
+      .hero-stats,
+      .stat-grid,
+      .form-grid,
+      .two-col,
+      .about-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-brand">
+      <div class="nav-emblem" aria-hidden="true"></div>
+      <div>
+        <div class="nav-title">Nepal Tourism Forecast</div>
+        <div class="nav-sub">Foreign arrivals dashboard</div>
+      </div>
+    </div>
+    <div class="nav-links">
+      <button class="nav-btn active" data-tab="dashboard" type="button">Dashboard</button>
+      <button class="nav-btn" data-tab="models" type="button">Models</button>
+      <button class="nav-btn" data-tab="forecast" type="button">Forecast</button>
+      <button class="nav-btn" data-tab="about" type="button">About</button>
+      <a class="nav-btn" href="login.html" id="loginLink">Login</a>
+      <a class="nav-btn" href="register.html" id="registerLink">Register</a>
+      <button class="nav-btn" id="logoutBtn" type="button" hidden>Logout</button>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="hero-content">
+      <div class="hero-tag" id="apiStatus">Checking API</div>
+      <h1>Tourism Demand <br><em>Forecasting</em> in Nepal</h1>
+      <p class="hero-desc">Generate model forecasts from the Flask API and compare SARIMA, Holt-Winters, Linear Regression, and a NumPy MLP on monthly arrival data.</p>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hero-stat-value" id="nextArrival" style="color:var(--red-light)">--</div>
+          <div class="hero-stat-label">Next forecast arrival</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-value" id="totalForecast" style="color:var(--gold-light)">--</div>
+          <div class="hero-stat-label">Selected horizon total</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-value" id="bestMape" style="color:var(--teal-light)">6.60%</div>
+          <div class="hero-stat-label">Best saved MAPE</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-value" style="font-size:26px">2026-02</div>
+          <div class="hero-stat-label">Dataset last month</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="dashboard" type="button">Dashboard</button>
+      <button class="tab-btn" data-tab="models" type="button">Model Comparison</button>
+      <button class="tab-btn" data-tab="forecast" type="button">Forecast Console</button>
+      <button class="tab-btn" data-tab="about" type="button">About & Data</button>
+    </div>
+
+    <section class="tab-content active" id="dashboard">
+      <div class="stat-grid">
+        <article class="stat-card">
+          <div class="stat-label">Best model</div>
+          <div class="stat-value" id="bestModel" style="color:var(--teal-light)">SARIMA</div>
+          <div class="stat-sub">Lowest saved test MAPE</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-label">Records</div>
+          <div class="stat-value" style="color:var(--gold-light)">422</div>
+          <div class="stat-sub">Monthly observations</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-label">Data range</div>
+          <div class="stat-value" style="font-size:22px">1991-2026</div>
+          <div class="stat-sub">Foreign arrivals</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-label">Auth status</div>
+          <div class="stat-value" id="authStatus" style="font-size:22px">Signed out</div>
+          <div class="stat-sub" id="authSub">Login to call protected routes</div>
+        </article>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Model forecast by month</span>
+          <div class="chip-group">
+            <span class="section-meta">Horizon</span>
+            <button class="chip" data-horizon="1" type="button">1 mo</button>
+            <button class="chip active" data-horizon="3" type="button">3 mo</button>
+            <button class="chip" data-horizon="6" type="button">6 mo</button>
+            <button class="chip" data-horizon="12" type="button">12 mo</button>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="forecastChart"></canvas>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><span class="dot" style="background:var(--teal-light)"></span>SARIMA</div>
+          <div class="legend-item"><span class="dot" style="background:var(--red-light)"></span>Holt-Winters</div>
+          <div class="legend-item"><span class="dot" style="background:var(--gold-light)"></span>Linear Regression</div>
+          <div class="legend-item"><span class="dot" style="background:var(--blue-light)"></span>MLP</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">Seasonal arrival pattern</span>
+            <span class="section-meta">domain encoded features</span>
+          </div>
+          <div class="season-months">
+            <div class="season-month"><span class="s-label">Jan</span><div class="s-bar s-shoulder" style="height:28px"></div></div>
+            <div class="season-month"><span class="s-label">Feb</span><div class="s-bar s-shoulder" style="height:34px"></div></div>
+            <div class="season-month"><span class="s-label">Mar</span><div class="s-bar s-peak" style="height:56px"></div></div>
+            <div class="season-month"><span class="s-label">Apr</span><div class="s-bar s-peak" style="height:60px"></div></div>
+            <div class="season-month"><span class="s-label">May</span><div class="s-bar s-peak" style="height:50px"></div></div>
+            <div class="season-month"><span class="s-label">Jun</span><div class="s-bar s-low" style="height:16px"></div></div>
+            <div class="season-month"><span class="s-label">Jul</span><div class="s-bar s-low" style="height:14px"></div></div>
+            <div class="season-month"><span class="s-label">Aug</span><div class="s-bar s-low" style="height:16px"></div></div>
+            <div class="season-month"><span class="s-label">Sep</span><div class="s-bar s-peak" style="height:42px"></div></div>
+            <div class="season-month"><span class="s-label">Oct</span><div class="s-bar s-peak" style="height:62px"></div></div>
+            <div class="season-month"><span class="s-label">Nov</span><div class="s-bar s-peak" style="height:54px"></div></div>
+            <div class="season-month"><span class="s-label">Dec</span><div class="s-bar s-shoulder" style="height:30px"></div></div>
+          </div>
+          <div class="legend">
+            <div class="legend-item"><span class="dot" style="background:var(--red)"></span>Peak trekking</div>
+            <div class="legend-item"><span class="dot" style="background:var(--gold)"></span>Shoulder</div>
+            <div class="legend-item"><span class="dot" style="background:var(--faint)"></span>Monsoon low</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">Prediction output</span>
+            <span class="section-meta" id="predictionMeta">waiting</span>
+          </div>
+          <div id="predictionOutput" class="empty">Login and generate a forecast.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-content" id="models">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Saved model performance</span>
+          <button class="ghost-btn" id="loadMetricsBtn" type="button">Refresh Metrics</button>
+        </div>
+        <div id="metricsOutput" class="empty">Login and load metrics from the API.</div>
+      </div>
+    </section>
+
+    <section class="tab-content" id="forecast">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">API connection</span>
+          <span class="message" id="apiMessage"></span>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="apiBase">API base URL</label>
+            <input id="apiBase" value="http://localhost:5000">
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button class="ghost-btn" id="checkApiBtn" type="button">Check API</button>
+          </div>
+          <div class="field">
+            <label for="horizonSelect">Forecast horizon</label>
+            <select id="horizonSelect">
+              <option value="1">1 month</option>
+              <option value="3" selected>3 months</option>
+              <option value="6">6 months</option>
+              <option value="12">12 months</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Account</span>
+          <span class="message" id="accountMessage"></span>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Current session</label>
+            <input id="sessionUser" value="Signed out" readonly>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <a class="primary-btn" href="login.html" id="accountLoginLink" style="display:flex;align-items:center;justify-content:center;text-decoration:none">Login</a>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <a class="ghost-btn" href="register.html" id="accountRegisterLink" style="display:flex;align-items:center;justify-content:center;text-decoration:none">Create Account</a>
+            <button class="ghost-btn" id="accountLogoutBtn" type="button" hidden>Logout</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Forecast request</span>
+          <span class="message" id="forecastMessage"></span>
+        </div>
+        <button class="primary-btn" id="predictBtn" type="button">Generate Forecast</button>
+      </div>
+    </section>
+
+    <section class="tab-content" id="about">
+      <div class="about-grid">
+        <article class="about-card">
+          <h3>Project Scope</h3>
+          <p>This backend forecasts monthly foreign tourist arrivals in Nepal using engineered seasonal, trend, COVID, and lag features. It compares a custom NumPy MLP against SARIMA, Holt-Winters, and Linear Regression baselines.</p>
+        </article>
+        <article class="about-card">
+          <h3>Why Static HTML</h3>
+          <p>A single HTML file is enough for this version because the UI only calls a few API endpoints. A framework becomes useful later if we add routing, shared components, admin screens, or a larger frontend team workflow.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span><strong>Nepal Tourism Forecast</strong> · Flask API + static dashboard</span>
+    <span>Models: MLP · SARIMA · Holt-Winters · Linear Regression</span>
+  </footer>
+
+  <script>
+    const state = {
+      horizon: 3,
+      token: localStorage.getItem("tourism_token") || "",
+      username: localStorage.getItem("tourism_username") || "",
+      forecastChart: null
+    };
+
+    const colors = {
+      "SARIMA": "#56b89f",
+      "Holt-Winters": "#e86060",
+      "Linear Regression": "#f0c96a",
+      "MLP": "#5b92cc"
+    };
+
+    const els = {
+      apiBase: document.getElementById("apiBase"),
+      apiStatus: document.getElementById("apiStatus"),
+      apiMessage: document.getElementById("apiMessage"),
+      authStatus: document.getElementById("authStatus"),
+      authSub: document.getElementById("authSub"),
+      accountMessage: document.getElementById("accountMessage"),
+      sessionUser: document.getElementById("sessionUser"),
+      loginLink: document.getElementById("loginLink"),
+      registerLink: document.getElementById("registerLink"),
+      logoutBtn: document.getElementById("logoutBtn"),
+      accountLoginLink: document.getElementById("accountLoginLink"),
+      accountRegisterLink: document.getElementById("accountRegisterLink"),
+      accountLogoutBtn: document.getElementById("accountLogoutBtn"),
+      forecastMessage: document.getElementById("forecastMessage"),
+      predictionMeta: document.getElementById("predictionMeta"),
+      predictionOutput: document.getElementById("predictionOutput"),
+      metricsOutput: document.getElementById("metricsOutput"),
+      nextArrival: document.getElementById("nextArrival"),
+      totalForecast: document.getElementById("totalForecast"),
+      bestMape: document.getElementById("bestMape"),
+      bestModel: document.getElementById("bestModel"),
+      horizonSelect: document.getElementById("horizonSelect")
+    };
+
+    els.apiBase.value = localStorage.getItem("tourism_api_base") || els.apiBase.value;
+
+    function apiBase() {
+      return els.apiBase.value.replace(/\/+$/, "");
+    }
+
+    function setMessage(el, text, isError = false) {
+      el.textContent = text;
+      el.classList.toggle("error", isError);
+    }
+
+    async function apiRequest(path, options = {}) {
+      const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+      if (state.token) headers.Authorization = `Bearer ${state.token}`;
+
+      const response = await fetch(`${apiBase()}${path}`, { ...options, headers });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || `Request failed: ${response.status}`);
+      return data;
+    }
+
+    function switchTab(name) {
+      document.querySelectorAll(".tab-content").forEach((el) => el.classList.toggle("active", el.id === name));
+      document.querySelectorAll("[data-tab]").forEach((el) => el.classList.toggle("active", el.dataset.tab === name));
+    }
+
+    function updateAuthUi() {
+      els.authStatus.textContent = state.token ? state.username : "Signed out";
+      els.authStatus.style.color = state.token ? "var(--teal-light)" : "var(--red-light)";
+      els.authSub.textContent = state.token ? "Token saved in this browser" : "Login to call protected routes";
+      els.sessionUser.value = state.token ? state.username : "Signed out";
+      els.loginLink.hidden = Boolean(state.token);
+      els.registerLink.hidden = Boolean(state.token);
+      els.logoutBtn.hidden = !state.token;
+      els.accountLoginLink.hidden = Boolean(state.token);
+      els.accountRegisterLink.hidden = Boolean(state.token);
+      els.accountLogoutBtn.hidden = !state.token;
+      setMessage(els.accountMessage, state.token ? "Ready to call protected API routes." : "Login or create an account to request forecasts.");
+    }
+
+    function clearForecast() {
+      els.nextArrival.textContent = "--";
+      els.totalForecast.textContent = "--";
+      els.predictionMeta.textContent = "waiting";
+      els.predictionOutput.className = "empty";
+      els.predictionOutput.textContent = "Login to load predictions.";
+      if (state.forecastChart) {
+        state.forecastChart.destroy();
+        state.forecastChart = null;
+      }
+    }
+
+    async function checkApi() {
+      localStorage.setItem("tourism_api_base", apiBase());
+      try {
+        const data = await apiRequest("/health", { method: "GET" });
+        els.apiStatus.textContent = "API online";
+        setMessage(els.apiMessage, data.message || "API is running.");
+      } catch (error) {
+        els.apiStatus.textContent = "API offline";
+        setMessage(els.apiMessage, error.message, true);
+      }
+    }
+
+    function logout() {
+      state.token = "";
+      state.username = "";
+      localStorage.removeItem("tourism_token");
+      localStorage.removeItem("tourism_username");
+      updateAuthUi();
+      clearForecast();
+      setMessage(els.accountMessage, "Logged out.");
+    }
+
+    function setHorizon(value, shouldFetch = true) {
+      state.horizon = Number(value);
+      els.horizonSelect.value = String(value);
+      document.querySelectorAll("[data-horizon]").forEach((el) => {
+        el.classList.toggle("active", Number(el.dataset.horizon) === state.horizon);
+      });
+      if (shouldFetch && state.token) {
+        generateForecast({ keepTab: true });
+      }
+    }
+
+    async function generateForecast(options = {}) {
+      if (!state.token) {
+        setMessage(els.forecastMessage, "Login first.", true);
+        switchTab("forecast");
+        return;
+      }
+
+      setMessage(els.forecastMessage, "Generating forecast...");
+      try {
+        const data = await apiRequest("/predict", {
+          method: "POST",
+          body: JSON.stringify({ horizon: state.horizon })
+        });
+        renderPredictions(data.predictions);
+        renderForecastChart(data.predictions);
+        updateHeroStats(data.predictions);
+        els.predictionMeta.textContent = `${state.horizon} month forecast`;
+        setMessage(els.forecastMessage, "Forecast generated.");
+        if (!options.keepTab) {
+          switchTab("dashboard");
+        }
+      } catch (error) {
+        setMessage(els.forecastMessage, error.message, true);
+      }
+    }
+
+    async function loadMetrics() {
+      if (!state.token) {
+        els.metricsOutput.className = "empty";
+        els.metricsOutput.textContent = "Login first to load metrics.";
+        switchTab("forecast");
+        return;
+      }
+
+      try {
+        const data = await apiRequest("/evaluate", { method: "GET" });
+        renderMetrics(data.metrics);
+      } catch (error) {
+        els.metricsOutput.className = "empty";
+        els.metricsOutput.textContent = error.message;
+      }
+    }
+
+    function renderPredictions(predictions) {
+      const names = Object.keys(predictions || {});
+      if (!names.length) {
+        els.predictionOutput.className = "empty";
+        els.predictionOutput.textContent = "No predictions returned.";
+        return;
+      }
+
+      els.predictionOutput.className = "card-grid";
+      els.predictionOutput.innerHTML = names.map((name) => {
+        const result = predictions[name];
+        const rows = result.months.map((month, index) => {
+          const arrivals = Number(result.arrivals[index]).toLocaleString();
+          return `<li><span>${month}</span><strong>${arrivals}</strong></li>`;
+        }).join("");
+        return `<article class="prediction-card"><h3>${escapeHtml(name)}</h3><ul class="prediction-list">${rows}</ul></article>`;
+      }).join("");
+    }
+
+    function renderMetrics(metrics) {
+      const names = Object.keys(metrics || {});
+      if (!names.length) {
+        els.metricsOutput.className = "empty";
+        els.metricsOutput.textContent = "No saved metrics returned.";
+        return;
+      }
+
+      const best = names.reduce((winner, name) => metrics[name].MAPE < metrics[winner].MAPE ? name : winner, names[0]);
+      els.bestModel.textContent = best;
+      els.bestMape.textContent = `${Number(metrics[best].MAPE).toFixed(2)}%`;
+
+      const rows = names.map((name) => {
+        const status = name === best ? '<span class="badge badge-good">Best</span>' : '<span class="badge badge-muted">Baseline</span>';
+        const modelColor = colors[name] || "#8b8982";
+        return `
+          <tr>
+            <td><span class="dot" style="display:inline-block;background:${modelColor};vertical-align:middle;margin-right:8px"></span>${escapeHtml(name)}</td>
+            <td>${Number(metrics[name].MAE).toLocaleString()}</td>
+            <td>${Number(metrics[name].RMSE).toLocaleString()}</td>
+            <td><span class="badge ${name === best ? "badge-good" : "badge-warn"}">${Number(metrics[name].MAPE).toFixed(2)}%</span></td>
+            <td>${status}</td>
+          </tr>
+        `;
+      }).join("");
+
+      els.metricsOutput.className = "";
+      els.metricsOutput.innerHTML = `
+        <table class="model-table">
+          <thead><tr><th>Model</th><th>MAE</th><th>RMSE</th><th>MAPE</th><th>Status</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }
+
+    function renderForecastChart(predictions) {
+      if (!window.Chart) return;
+      const names = Object.keys(predictions || {});
+      if (!names.length) return;
+
+      const labels = predictions[names[0]].months;
+      const datasets = names.map((name) => ({
+        label: name,
+        data: predictions[name].arrivals,
+        borderColor: colors[name] || "#e8e6df",
+        backgroundColor: colors[name] || "#e8e6df",
+        tension: 0.32,
+        borderWidth: 2,
+        pointRadius: 3
+      }));
+
+      if (state.forecastChart) state.forecastChart.destroy();
+      state.forecastChart = new Chart(document.getElementById("forecastChart"), {
+        type: "line",
+        data: { labels, datasets },
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw).toLocaleString()} arrivals`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: "rgba(255,255,255,0.05)" },
+              ticks: { color: "#8b8982" }
+            },
+            y: {
+              grid: { color: "rgba(255,255,255,0.05)" },
+              ticks: {
+                color: "#8b8982",
+                callback: (value) => `${Math.round(value / 1000)}k`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateHeroStats(predictions) {
+      const sarima = predictions.SARIMA || Object.values(predictions)[0];
+      if (!sarima) return;
+      const first = sarima.arrivals[0] || 0;
+      const total = sarima.arrivals.reduce((sum, value) => sum + Number(value), 0);
+      els.nextArrival.textContent = Number(first).toLocaleString();
+      els.totalForecast.textContent = Number(total).toLocaleString();
+    }
+
+    async function validateSession() {
+      if (!state.token) return false;
+      try {
+        const data = await apiRequest("/auth/me", { method: "GET" });
+        state.username = data.username;
+        localStorage.setItem("tourism_username", data.username);
+        updateAuthUi();
+        return true;
+      } catch {
+        state.token = "";
+        state.username = "";
+        localStorage.removeItem("tourism_token");
+        localStorage.removeItem("tourism_username");
+        updateAuthUi();
+        clearForecast();
+        return false;
+      }
+    }
+
+    async function initializeDashboard() {
+      updateAuthUi();
+      await checkApi();
+      const hasValidSession = await validateSession();
+      if (hasValidSession) {
+        await generateForecast({ keepTab: true });
+        await loadMetrics();
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    document.querySelectorAll("[data-tab]").forEach((button) => {
+      button.addEventListener("click", () => switchTab(button.dataset.tab));
+    });
+
+    document.querySelectorAll("[data-horizon]").forEach((button) => {
+      button.addEventListener("click", () => setHorizon(button.dataset.horizon));
+    });
+
+    els.horizonSelect.addEventListener("change", () => setHorizon(els.horizonSelect.value));
+    els.logoutBtn.addEventListener("click", logout);
+    els.accountLogoutBtn.addEventListener("click", logout);
+    document.getElementById("checkApiBtn").addEventListener("click", checkApi);
+    document.getElementById("predictBtn").addEventListener("click", generateForecast);
+    document.getElementById("loadMetricsBtn").addEventListener("click", loadMetrics);
+
+    initializeDashboard();
+  </script>
+</body>
+</html>
