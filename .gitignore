@@ -5,3 +5,5 @@ __pycache__/
 .venv/
 venv/
 backend/users.db
+frontend/dist/
+frontend/node_modules/
