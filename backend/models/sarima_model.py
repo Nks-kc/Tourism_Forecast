@@ -21,7 +21,6 @@ WHY KEEP THIS ALONGSIDE MLP?
 """
 
 import os
-import pickle
 import warnings
 import numpy as np
 
@@ -98,16 +97,16 @@ class SARIMAModel:
         return np.array(forecast)
 
     def save(self, path: str):
-        """Save the fitted SARIMA result object using pickle."""
+        """Save using statsmodels' native .save() — avoids Windows errno 22 on large pickle writes."""
         dirpath = os.path.dirname(path)
         if dirpath:
             os.makedirs(dirpath, exist_ok=True)
-        with open(path, "wb") as f:
-            pickle.dump(self.result, f)
+        self.result.save(path)
         print(f"  SARIMA saved → {path}")
 
     def load(self, path: str):
         """Load a previously saved SARIMA result object."""
-        with open(path, "rb") as f:
-            self.result = pickle.load(f)
+        from statsmodels.tsa.statespace.sarimax import SARIMAXResults
+        self.result = SARIMAXResults.load(path)
         print(f"  SARIMA loaded ← {path}")
+
