@@ -7,3 +7,7 @@ venv/
 backend/users.db
 frontend/dist/
 frontend/node_modules/
+backend/outputs/forecasts/*.csv
+backend/outputs/metrics/*.csv
+backend/outputs/plots/*.png
+backend/outputs/plots/*.jpg
