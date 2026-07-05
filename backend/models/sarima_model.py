@@ -20,93 +20,141 @@ WHY KEEP THIS ALONGSIDE MLP?
   - Comparing MLP vs SARIMA tells you how much value the neural network adds.
 """
 
+import logging
 import os
 import warnings
+
 import numpy as np
+from statsmodels.tsa.statespace.sarimax import SARIMAX, SARIMAXResults
+
+from config import SARIMA_ORDER, SARIMA_SEASONAL_ORDER
 
 warnings.filterwarnings("ignore")
 
-from statsmodels.tsa.statespace.sarimax import SARIMAX
-
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import SARIMA_ORDER, SARIMA_SEASONAL_ORDER, SAVED_MODELS_DIR
+logger = logging.getLogger(__name__)
 
 
 class SARIMAModel:
+    """
+    Wrapper around statsmodels' SARIMAX implementation.
+    """
 
-    def __init__(self, order=SARIMA_ORDER, seasonal_order=SARIMA_SEASONAL_ORDER):
-        """
-        Args:
-            order:          (p, d, q)
-                              p = AR order: how many past values to use
-                              d = differencing: 1 usually makes series stationary
-                              q = MA order: how many past errors to use
-            seasonal_order: (P, D, Q, s)
-                              Same as above but for seasonal cycles.
-                              s = 12 because we have monthly data.
-        """
-        self.order          = order
+    def __init__(
+        self,
+        order=SARIMA_ORDER,
+        seasonal_order=SARIMA_SEASONAL_ORDER,
+    ):
+
+        self.order = order
         self.seasonal_order = seasonal_order
-        self.result         = None  # will hold the fitted model after .fit()
 
-    def fit(self, y_train: np.ndarray, exog_train: np.ndarray = None):
-        """
-        Fit the SARIMA model on training data.
+        self.result = None
 
-        Args:
-            y_train:    Monthly tourist arrivals, shape (n,) or (n,1)
-            exog_train: Optional external features, shape (n, n_features)
-                        e.g. [[is_spring_trek, is_autumn_trek, is_monsoon, is_covid], ...]
+        self.is_fitted = False
+
+    def fit(
+        self,
+        y_train: np.ndarray,
+        exog_train: np.ndarray | None = None,
+    ):
         """
+        Train the SARIMA model.
+        """
+
         y = y_train.flatten()
 
-        print(f"  Fitting SARIMA order={self.order}, seasonal={self.seasonal_order} ...")
-        print(f"  Training on {len(y)} months of data.")
+        logger.info(
+            "Training SARIMA %s seasonal=%s",
+            self.order,
+            self.seasonal_order,
+        )
 
         model = SARIMAX(
             y,
-            exog                  = exog_train,
-            order                 = self.order,
-            seasonal_order        = self.seasonal_order,
-            enforce_stationarity  = False,   # avoids errors on some datasets
-            enforce_invertibility = False,
+            exog=exog_train,
+            order=self.order,
+            seasonal_order=self.seasonal_order,
+            enforce_stationarity=False,
+            enforce_invertibility=False,
         )
-        self.result = model.fit(disp=False)  # disp=False suppresses verbose output
 
-        print("  SARIMA fitted successfully.")
-        # Print a short summary of the fit
-        print(self.result.summary().tables[0].as_text())
+        self.result = model.fit(disp=False)
 
-    def predict(self, steps: int, exog_future: np.ndarray = None) -> np.ndarray:
+        self.is_fitted = True
+
+        logger.info("SARIMA training completed.")
+
+        return self
+
+    def predict(
+        self,
+        steps: int,
+        exog_future: np.ndarray | None = None,
+    ) -> np.ndarray:
         """
-        Forecast tourist arrivals for the next `steps` months.
-
-        Args:
-            steps:        Number of months to forecast (1, 3, 6, or 12)
-            exog_future:  External features for future months, shape (steps, n_features)
-                          Must be provided if exog_train was used during fit().
-
-        Returns:
-            Predicted arrivals array, shape (steps,)
+        Forecast future values.
         """
-        if self.result is None:
-            raise RuntimeError("Model not fitted. Call .fit() first.")
 
-        forecast = self.result.forecast(steps=steps, exog=exog_future)
-        return np.array(forecast)
+        if not self.is_fitted:
+            raise RuntimeError("Model has not been trained.")
 
-    def save(self, path: str):
-        """Save using statsmodels' native .save() — avoids Windows errno 22 on large pickle writes."""
-        dirpath = os.path.dirname(path)
-        if dirpath:
-            os.makedirs(dirpath, exist_ok=True)
-        self.result.save(path)
-        print(f"  SARIMA saved → {path}")
+        forecast = self.result.forecast(
+            steps=steps,
+            exog=exog_future,
+        )
 
-    def load(self, path: str):
-        """Load a previously saved SARIMA result object."""
-        from statsmodels.tsa.statespace.sarimax import SARIMAXResults
-        self.result = SARIMAXResults.load(path)
-        print(f"  SARIMA loaded ← {path}")
+        return np.asarray(forecast)
+
+    def save_model(
+        self,
+        filepath: str,
+    ):
+        """
+        Save the trained SARIMA model.
+        """
+
+        os.makedirs(
+            os.path.dirname(filepath),
+            exist_ok=True,
+        )
+
+        self.result.save(filepath)
+
+        logger.info(
+            "SARIMA model saved to %s",
+            filepath,
+        )
+
+    @classmethod
+    def load_model(
+        cls,
+        filepath: str,
+    ):
+        """
+        Load a trained SARIMA model.
+        """
+
+        model = cls()
+
+        model.result = SARIMAXResults.load(filepath)
+
+        model.is_fitted = True
+
+        logger.info(
+            "SARIMA model loaded from %s",
+            filepath,
+        )
+
+        return model
+
+    # ----------------------------------------------------
+    # Backward compatibility
+    # ----------------------------------------------------
+
+    def save(self, filepath: str):
+        self.save_model(filepath)
+
+    @classmethod
+    def load(cls, filepath: str):
+        return cls.load_model(filepath)
 

@@ -1,22 +1,22 @@
 {
-  "MLP": {
-    "MAE": 8586.67,
-    "RMSE": 10776.14,
-    "MAPE": 8.88
-  },
-  "SARIMA": {
-    "MAE": 6175.69,
-    "RMSE": 7427.84,
-    "MAPE": 6.6
-  },
-  "Holt-Winters": {
-    "MAE": 7086.04,
-    "RMSE": 9201.22,
-    "MAPE": 7.52
-  },
-  "Linear Regression": {
-    "MAE": 8380.91,
-    "RMSE": 9498.27,
-    "MAPE": 8.5
-  }
+    "MLP": {
+        "MAE": 1152.55,
+        "RMSE": 1954.37,
+        "MAPE": 45.71
+    },
+    "Linear Regression": {
+        "MAE": 1347.36,
+        "RMSE": 2470.78,
+        "MAPE": 62.0
+    },
+    "SARIMA": {
+        "MAE": 1111.13,
+        "RMSE": 1353.63,
+        "MAPE": 42.19
+    },
+    "Holt-Winters": {
+        "MAE": 1137.87,
+        "RMSE": 1342.57,
+        "MAPE": 57.35
+    }
 }

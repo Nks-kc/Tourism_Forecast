@@ -27,46 +27,112 @@ ACTIVATION FUNCTIONS:
 """
 
 import numpy as np
-import os
 
+import logging
+import pickle
+
+from config import (
+    MLP_HIDDEN_SIZES,
+    MLP_LEARNING_RATE,
+    MLP_EPOCHS,
+    MLP_BATCH_SIZE,
+)
+
+from models.scaler import StandardScaler
+
+logger = logging.getLogger(__name__)
 
 class MLP:
 
-    def __init__(self, input_size: int, hidden_sizes: list, learning_rate: float = 0.001):
+    def __init__(
+        self,
+        input_size: int,
+        hidden_sizes: list | None = None,
+        learning_rate: float = MLP_LEARNING_RATE,
+        epochs: int = MLP_EPOCHS,
+        batch_size: int = MLP_BATCH_SIZE,
+        random_state: int = 42,
+    ):
         """
-        Build the network and randomly initialize all weights.
+        Build the neural network and initialize all parameters.
 
         Args:
-            input_size:    Number of input features (len(FEATURE_COLS))
-            hidden_sizes:  List of neuron counts per hidden layer, e.g. [64, 32]
-            learning_rate: How large a step to take each weight update.
-                           Too high → training diverges.
-                           Too low  → training is very slow.
+            input_size:
+                Number of input features.
 
-        Example: MLP(10, [64, 32]) creates:
-            Layer 0: 10  → 64  (weights shape 10×64)
-            Layer 1: 64  → 32  (weights shape 64×32)
-            Layer 2: 32  → 1   (weights shape 32×1 — the output)
+            hidden_sizes:
+                List containing the number of neurons in each hidden layer.
+                Example: [64, 32]
+
+            learning_rate:
+                Gradient descent learning rate.
+
+            epochs:
+                Number of training epochs.
+
+            batch_size:
+                Mini-batch size.
+
+            random_state:
+                Random seed used for reproducible weight initialization.
         """
+
+        # -------------------------
+        # Reproducibility
+        # -------------------------
+        self.random_state = random_state
+
+        if self.random_state is not None:
+            np.random.seed(self.random_state)
+
+        # -------------------------
+        # Hyperparameters
+        # -------------------------
+        if hidden_sizes is None:
+            hidden_sizes = MLP_HIDDEN_SIZES
+
+        self.hidden_sizes = hidden_sizes
         self.lr = learning_rate
-        self.layer_sizes = [input_size] + hidden_sizes + [1]  # 1 output neuron
+        self.epochs = epochs
+        self.batch_size = batch_size
 
+        # -------------------------
+        # Network Architecture
+        # -------------------------
+        self.layer_sizes = [input_size] + hidden_sizes + [1]
+
+        # -------------------------
+        # Model Parameters
+        # -------------------------
         self.weights = []
-        self.biases  = []
+        self.biases = []
 
+        # -------------------------
+        # Training Utilities
+        # -------------------------
+        self.scaler = StandardScaler()
+
+        self.loss_history: list[float] = []
+
+        self.best_loss = np.inf
+
+        self.is_fitted = False
+
+        # -------------------------
+        # Weight Initialization
+        # -------------------------
         for i in range(len(self.layer_sizes) - 1):
-            n_in  = self.layer_sizes[i]
+
+            n_in = self.layer_sizes[i]
             n_out = self.layer_sizes[i + 1]
 
-            # He initialization: weights ~ Normal(0, sqrt(2 / n_in))
-            # WHY? If weights are too large, signals explode through layers.
-            # If too small, signals vanish. He init keeps them in a good range
-            # specifically for ReLU activations.
-            w = np.random.randn(n_in, n_out) * np.sqrt(2.0 / n_in)
-            b = np.zeros((1, n_out))  # biases start at zero
+            # He Initialization
+            weight = np.random.randn(n_in, n_out) * np.sqrt(2.0 / n_in)
 
-            self.weights.append(w)
-            self.biases.append(b)
+            bias = np.zeros((1, n_out))
+
+            self.weights.append(weight)
+            self.biases.append(bias)
 
     # ──────────────────────────────────────────────────────────────────────────
     # Activation functions
@@ -218,117 +284,271 @@ class MLP:
     # STEP 5 — Training loop
     # ──────────────────────────────────────────────────────────────────────────
 
-    def train(self, X: np.ndarray, y: np.ndarray,
-              epochs: int = 1000, batch_size: int = 16,
-              val_data=None, verbose: bool = True) -> dict:
+    def train(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        epochs: int | None = None,
+        batch_size: int | None = None,
+        val_data=None,
+        verbose: bool = True,
+    ) -> dict:
         """
-        Full training loop: repeat forward → loss → backward → update.
-
-        MINI-BATCHING explained:
-            Instead of feeding all data at once (slow) or one sample at a time
-            (noisy), we feed small "batches" of 16 samples. This gives a good
-            balance of speed and gradient accuracy.
+        Train the neural network using mini-batch gradient descent.
 
         Args:
-            X:          Training features,  shape (n_samples, n_features)
-            y:          Training targets,   shape (n_samples, 1)
-            epochs:     How many full passes through the training data
-            batch_size: Samples per mini-batch
-            val_data:   Optional (X_val, y_val) for tracking validation loss
-            verbose:    Print progress every 200 epochs
+            X:
+                Training feature matrix.
+
+            y:
+                Training target vector.
+
+            epochs:
+                Number of training epochs. If None, uses config.py value.
+
+            batch_size:
+                Mini-batch size. If None, uses config.py value.
+
+            val_data:
+                Optional tuple (X_val, y_val).
+
+            verbose:
+                Print training progress.
 
         Returns:
-            dict with "train_loss" list (and "val_loss" if val_data given)
+            Dictionary containing training history.
         """
-        n       = X.shape[0]
-        history = {"train_loss": [], "val_loss": []}
 
+        # ---------------------------------------------------------
+        # Use default configuration if not explicitly provided
+        # ---------------------------------------------------------
+        if epochs is None:
+            epochs = self.epochs
+
+        if batch_size is None:
+            batch_size = self.batch_size
+
+        # ---------------------------------------------------------
+        # Scale training features
+        # ---------------------------------------------------------
+        X = self.scaler.fit_transform(X)
+
+        if val_data is not None:
+            X_val, y_val = val_data
+            X_val = self.scaler.transform(X_val)
+            val_data = (X_val, y_val)
+
+        n = X.shape[0]
+
+        history = {
+            "train_loss": [],
+            "val_loss": [],
+        }
+
+        self.loss_history.clear()
+
+        # ---------------------------------------------------------
+        # Training Loop
+        # ---------------------------------------------------------
         for epoch in range(epochs):
 
-            # Shuffle training data every epoch.
-            # WHY? To prevent the model from learning the order of the data.
-            perm       = np.random.permutation(n)
-            X_shuffled = X[perm]
-            y_shuffled = y[perm]
+            # Shuffle samples every epoch
+            permutation = np.random.permutation(n)
+
+            X_shuffled = X[permutation]
+            y_shuffled = y[permutation]
 
             batch_losses = []
 
-            # Mini-batch loop
+            # ---------------- Mini-batches ----------------
+
             for start in range(0, n, batch_size):
-                X_batch = X_shuffled[start : start + batch_size]
-                y_batch = y_shuffled[start : start + batch_size]
 
-                y_pred = self.forward(X_batch)          # Step 1
-                loss   = self.compute_loss(y_pred, y_batch)  # Step 2
+                end = start + batch_size
+
+                X_batch = X_shuffled[start:end]
+                y_batch = y_shuffled[start:end]
+
+                # Forward pass
+                y_pred = self.forward(X_batch)
+
+                # Compute loss
+                loss = self.compute_loss(y_pred, y_batch)
+
                 batch_losses.append(loss)
-                self.backward(y_batch)                  # Step 3
-                self._update_weights()                  # Step 4
 
+                # Backpropagation
+                self.backward(y_batch)
+
+                # Gradient update
+                self._update_weights()
+
+            # -----------------------------------------------------
+            # End of Epoch
+            # -----------------------------------------------------
             avg_loss = float(np.mean(batch_losses))
+
             history["train_loss"].append(avg_loss)
 
-            # Compute validation loss (no weight update here — just measuring)
-            if val_data is not None:
-                X_val, y_val = val_data
-                val_pred = self.forward(X_val)
-                val_loss = self.compute_loss(val_pred, y_val)
-                history["val_loss"].append(val_loss)
+            self.loss_history.append(avg_loss)
 
-            if verbose and (epoch + 1) % 200 == 0:
-                val_str = f"  |  Val loss: {val_loss:.6f}" if val_data else ""
-                print(f"  Epoch {epoch + 1:>4}/{epochs}  |  Train loss: {avg_loss:.6f}{val_str}")
+            # Validation
+            if val_data is not None:
+
+                X_val, y_val = val_data
+
+                val_pred = self.forward(X_val)
+
+                val_loss = self.compute_loss(val_pred, y_val)
+
+                history["val_loss"].append(float(val_loss))
+
+                if val_loss < self.best_loss:
+                    self.best_loss = val_loss
+
+            # Logging
+            if verbose and ((epoch + 1) % 100 == 0 or epoch == 0):
+
+                if val_data is not None:
+
+                    logger.info(
+                        "Epoch %4d/%d | Train Loss: %.6f | Val Loss: %.6f",
+                        epoch + 1,
+                        epochs,
+                        avg_loss,
+                        val_loss,
+                    )
+
+                else:
+
+                    logger.info(
+                        "Epoch %4d/%d | Train Loss: %.6f",
+                        epoch + 1,
+                        epochs,
+                        avg_loss,
+                    )
+
+        self.is_fitted = True
 
         return history
+    
+    def fit(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        **kwargs,
+    ):
+        """
+        Alias for train() to follow the scikit-learn API.
+        """
+
+        return self.train(X, y, **kwargs)
 
     # ──────────────────────────────────────────────────────────────────────────
     # Inference
     # ──────────────────────────────────────────────────────────────────────────
 
     def predict(self, X: np.ndarray) -> np.ndarray:
+
+
         """
-        Generate predictions for new data (no gradient storage needed).
-        Just runs the forward pass.
+            Generate predictions using the trained MLP.
+
+            Args:
+                X:
+                    Feature matrix of shape (n_samples, n_features)
+
+            Returns:
+                Predicted values with shape (n_samples, 1)
         """
-        return self.forward(X)
+
+        if not self.is_fitted:
+            raise RuntimeError(
+                "The model has not been trained yet. Call train() first."
+            )
+
+        # Apply the same scaling used during training
+        X_scaled = self.scaler.transform(X)
+
+        predictions = self.forward(X_scaled)
+
+        return predictions
 
     # ──────────────────────────────────────────────────────────────────────────
     # Save & Load
     # ──────────────────────────────────────────────────────────────────────────
 
-    def save(self, path: str):
+    def save_model(self, filepath: str) -> None:
         """
-        Save all weights, biases, and architecture to a .npz file.
-        .npz is NumPy's native compressed archive format.
-        """
-        dirpath = os.path.dirname(path)
-        if dirpath:
-            os.makedirs(dirpath, exist_ok=True)
+        Save the trained model to disk.
 
-        save_dict = {
-            "layer_sizes": np.array(self.layer_sizes),
-            "lr":          np.array([self.lr]),
+        This saves:
+            - network architecture
+            - weights
+            - biases
+            - training hyperparameters
+            - fitted scaler parameters
+        """
+
+        if not self.is_fitted:
+            raise RuntimeError(
+                "Cannot save an untrained model."
+            )
+
+        model_data = {
+            "layer_sizes": self.layer_sizes,
+            "hidden_sizes": self.hidden_sizes,
+            "learning_rate": self.lr,
+            "epochs": self.epochs,
+            "batch_size": self.batch_size,
+            "random_state": self.random_state,
+            "weights": self.weights,
+            "biases": self.biases,
+            "loss_history": self.loss_history,
+            "best_loss": self.best_loss,
+            "scaler_mean": self.scaler.mean_,
+            "scaler_std": self.scaler.std_,
         }
-        for i, (w, b) in enumerate(zip(self.weights, self.biases)):
-            save_dict[f"w_{i}"] = w
-            save_dict[f"b_{i}"] = b
 
-        np.savez(path, **save_dict)
-        print(f"  MLP saved → {path}")
+        with open(filepath, "wb") as file:
+            pickle.dump(model_data, file)
+
+        logger.info("MLP model saved to %s", filepath)
 
     @classmethod
-    def load(cls, path: str) -> "MLP":
-        """Reconstruct an MLP from a saved .npz file."""
-        data        = np.load(path)
-        layer_sizes = data["layer_sizes"].tolist()
-        lr          = float(data["lr"][0])
+    def load_model(cls, filepath: str):
+        """
+        Load a previously trained MLP model.
+        """
 
-        input_size   = layer_sizes[0]
-        hidden_sizes = layer_sizes[1:-1]  # everything except input and output
+        with open(filepath, "rb") as file:
+            model_data = pickle.load(file)
 
-        model = cls(input_size, hidden_sizes, lr)
-        for i in range(len(model.weights)):
-            model.weights[i] = data[f"w_{i}"]
-            model.biases[i]  = data[f"b_{i}"]
+        input_size = model_data["layer_sizes"][0]
 
-        print(f"  MLP loaded ← {path}")
+        model = cls(
+            input_size=input_size,
+            hidden_sizes=model_data["hidden_sizes"],
+            learning_rate=model_data["learning_rate"],
+            epochs=model_data["epochs"],
+            batch_size=model_data["batch_size"],
+            random_state=model_data.get("random_state", 42),
+        )
+
+        model.weights = model_data["weights"]
+        model.biases = model_data["biases"]
+
+        model.loss_history = model_data.get("loss_history", [])
+
+        model.best_loss = model_data.get("best_loss", np.inf)
+
+        model.scaler.set_params(
+            model_data["scaler_mean"],
+            model_data["scaler_std"],
+        )
+
+        model.is_fitted = True
+
+        logger.info("MLP model loaded from %s", filepath)
+
         return model

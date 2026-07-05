@@ -23,86 +23,151 @@ WHY INCLUDE IT ANYWAY?
   - If MLP beats both baselines, that is compelling evidence for your project.
 """
 
+import logging
 import os
 import pickle
 import warnings
+
 import numpy as np
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
+
+from config import (
+    HW_TREND,
+    HW_SEASONAL,
+    HW_SEASONAL_PERIODS,
+)
 
 warnings.filterwarnings("ignore")
 
-from statsmodels.tsa.holtwinters import ExponentialSmoothing
-
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import HW_TREND, HW_SEASONAL, HW_SEASONAL_PERIODS, SAVED_MODELS_DIR
+logger = logging.getLogger(__name__)
 
 
 class HoltWintersModel:
+    """
+    Wrapper around statsmodels' Holt-Winters implementation.
+    """
 
-    def __init__(self, trend=HW_TREND, seasonal=HW_SEASONAL,
-                 seasonal_periods=HW_SEASONAL_PERIODS):
-        """
-        Args:
-            trend:            "add" = additive (seasonality stays same size over time)
-                              "mul" = multiplicative (seasonality grows with the level)
-                              Use "add" when you are unsure — it is more stable.
-            seasonal:         Same "add" / "mul" choice for the seasonal component.
-            seasonal_periods: 12 for monthly data (one full cycle = 12 months)
-        """
-        self.trend            = trend
-        self.seasonal         = seasonal
+    def __init__(
+        self,
+        trend=HW_TREND,
+        seasonal=HW_SEASONAL,
+        seasonal_periods=HW_SEASONAL_PERIODS,
+    ):
+
+        self.trend = trend
+        self.seasonal = seasonal
         self.seasonal_periods = seasonal_periods
-        self.model            = None  # will hold the fitted model after .fit()
 
-    def fit(self, y_train: np.ndarray):
-        """
-        Fit Holt-Winters on training data.
+        self.model = None
 
-        Args:
-            y_train: Monthly tourist arrivals, shape (n,) or (n,1)
-                     Needs at least 2 × seasonal_periods = 24 months of data.
+        self.is_fitted = False
+
+    def fit(
+        self,
+        y_train: np.ndarray,
+    ):
         """
+        Train the Holt-Winters model.
+        """
+
         y = y_train.flatten()
 
-        print(f"  Fitting Holt-Winters (trend='{self.trend}', seasonal='{self.seasonal}') ...")
-        print(f"  Training on {len(y)} months of data.")
+        logger.info(
+            "Training Holt-Winters (trend=%s, seasonal=%s)",
+            self.trend,
+            self.seasonal,
+        )
 
         hw = ExponentialSmoothing(
             y,
-            trend            = self.trend,
-            seasonal         = self.seasonal,
-            seasonal_periods = self.seasonal_periods,
+            trend=self.trend,
+            seasonal=self.seasonal,
+            seasonal_periods=self.seasonal_periods,
         )
-        # optimized=True: statsmodels finds the best smoothing parameters automatically
-        self.model = hw.fit(optimized=True)
-        print("  Holt-Winters fitted successfully.")
 
-    def predict(self, steps: int) -> np.ndarray:
+        self.model = hw.fit(
+            optimized=True,
+        )
+
+        self.is_fitted = True
+
+        logger.info("Holt-Winters training completed.")
+
+        return self
+
+    def predict(
+        self,
+        steps: int,
+    ) -> np.ndarray:
         """
-        Forecast tourist arrivals for the next `steps` months.
-
-        Args:
-            steps: Number of months to forecast (1, 3, 6, or 12)
-
-        Returns:
-            Predicted arrivals array, shape (steps,)
+        Forecast future observations.
         """
-        if self.model is None:
-            raise RuntimeError("Model not fitted. Call .fit() first.")
 
-        return np.array(self.model.forecast(steps))
+        if not self.is_fitted:
+            raise RuntimeError("Model has not been trained.")
 
-    def save(self, path: str):
-        """Save the fitted model using pickle."""
-        dirpath = os.path.dirname(path)
-        if dirpath:
-            os.makedirs(dirpath, exist_ok=True)
-        with open(path, "wb") as f:
-            pickle.dump(self.model, f)
-        print(f"  Holt-Winters saved → {path}")
+        forecast = self.model.forecast(
+            steps,
+        )
 
-    def load(self, path: str):
-        """Load a previously saved Holt-Winters model."""
-        with open(path, "rb") as f:
-            self.model = pickle.load(f)
-        print(f"  Holt-Winters loaded ← {path}")
+        return np.asarray(forecast)
+
+    def save_model(
+        self,
+        filepath: str,
+    ):
+        """
+        Save the trained Holt-Winters model.
+        """
+
+        os.makedirs(
+            os.path.dirname(filepath),
+            exist_ok=True,
+        )
+
+        with open(filepath, "wb") as file:
+            pickle.dump(
+                self.model,
+                file,
+            )
+
+        logger.info(
+            "Holt-Winters model saved to %s",
+            filepath,
+        )
+
+    @classmethod
+    def load_model(
+        cls,
+        filepath: str,
+    ):
+        """
+        Load a trained Holt-Winters model.
+        """
+
+        with open(filepath, "rb") as file:
+            fitted_model = pickle.load(file)
+
+        model = cls()
+
+        model.model = fitted_model
+
+        model.is_fitted = True
+
+        logger.info(
+            "Holt-Winters model loaded from %s",
+            filepath,
+        )
+
+        return model
+
+    # --------------------------------------------------------
+    # Backward compatibility
+    # --------------------------------------------------------
+
+    def save(self, filepath: str):
+        self.save_model(filepath)
+
+    @classmethod
+    def load(cls, filepath: str):
+        return cls.load_model(filepath)
