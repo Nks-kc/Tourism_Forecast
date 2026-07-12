@@ -1,0 +1,90 @@
+{
+    "best_model": "Linear Regression",
+    "primary_metric": "MAPE",
+    "models": {
+        "MLP": {
+            "is_best_overall": false,
+            "MAE": {
+                "rank": 2,
+                "value": 10289.48,
+                "delta_from_best": 15.57,
+                "pct_worse_than_best": 0.15
+            },
+            "RMSE": {
+                "rank": 1,
+                "value": 13971.1,
+                "delta_from_best": 0.0,
+                "pct_worse_than_best": 0.0
+            },
+            "MAPE": {
+                "rank": 2,
+                "value": 11.79,
+                "delta_from_best": 0.82,
+                "pct_worse_than_best": 7.47
+            }
+        },
+        "Linear Regression": {
+            "is_best_overall": true,
+            "MAE": {
+                "rank": 1,
+                "value": 10273.91,
+                "delta_from_best": 0.0,
+                "pct_worse_than_best": 0.0
+            },
+            "RMSE": {
+                "rank": 3,
+                "value": 14349.75,
+                "delta_from_best": 378.65,
+                "pct_worse_than_best": 2.71
+            },
+            "MAPE": {
+                "rank": 1,
+                "value": 10.97,
+                "delta_from_best": 0.0,
+                "pct_worse_than_best": 0.0
+            }
+        },
+        "SARIMA": {
+            "is_best_overall": false,
+            "MAE": {
+                "rank": 4,
+                "value": 12706.01,
+                "delta_from_best": 2432.1,
+                "pct_worse_than_best": 23.67
+            },
+            "RMSE": {
+                "rank": 4,
+                "value": 14797.91,
+                "delta_from_best": 826.81,
+                "pct_worse_than_best": 5.92
+            },
+            "MAPE": {
+                "rank": 3,
+                "value": 13.57,
+                "delta_from_best": 2.6,
+                "pct_worse_than_best": 23.7
+            }
+        },
+        "Holt-Winters": {
+            "is_best_overall": false,
+            "MAE": {
+                "rank": 3,
+                "value": 11926.51,
+                "delta_from_best": 1652.6,
+                "pct_worse_than_best": 16.09
+            },
+            "RMSE": {
+                "rank": 2,
+                "value": 14234.99,
+                "delta_from_best": 263.89,
+                "pct_worse_than_best": 1.89
+            },
+            "MAPE": {
+                "rank": 4,
+                "value": 13.89,
+                "delta_from_best": 2.92,
+                "pct_worse_than_best": 26.62
+            }
+        }
+    }
+}
