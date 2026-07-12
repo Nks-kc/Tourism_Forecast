@@ -8,11 +8,12 @@ from config import PROCESSED_TOTAL_CSV, TEST_MONTHS
 from feature_engineering.constants import DATE_COLUMN, COUNTRY_COLUMN, TARGET_COLUMN
 from feature_engineering.cross_validation import run_cross_validation
 from feature_engineering.preprocessing import preprocess_data
-from feature_engineering.time_features import add_time_features
-from feature_engineering.lag_features import add_lag_features, remove_initial_nan_rows
-from feature_engineering.rolling_features import (
+from feature_engineering.features import (
+    add_time_features,
     add_rolling_features,
     remove_initial_rolling_rows,
+    add_lag_features,
+    remove_initial_nan_rows,
 )
 from feature_engineering.dataset import get_feature_columns, get_target_column
 from models.scaler import StandardScaler

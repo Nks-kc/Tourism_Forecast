@@ -8,7 +8,7 @@ import base64
 from flask import Blueprint, request, jsonify, current_app
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from auth.models import create_user, authenticate_user, init_db
+from auth.models import create_user, authenticate_user
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 TOKEN_EXPIRY_HOURS = 24
