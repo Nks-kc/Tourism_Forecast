@@ -81,6 +81,41 @@ def predict_total(horizon: int = FORECAST_HORIZON, save_to_disk: bool = False) -
     return results
 
 
+def predict_country(
+    country: str, horizon: int = FORECAST_HORIZON, save_to_disk: bool = False
+) -> dict:
+    if horizon <= 0:
+        raise ValueError("horizon must be a positive integer.")
+    available_countries = get_available_countries()
+    if country not in available_countries:
+        raise ValueError(
+            f"Unknown country '{country}'. Available countries: {available_countries}"
+        )
+    months = _future_month_labels(get_dataset_last_date(), horizon)
+    results = {}
+    for model_key in AVAILABLE_MODELS:
+        display_name = MODEL_DISPLAY_NAMES[model_key]
+        values = forecast(model_name=model_key, country=country, horizon=horizon)
+        values = [max(0.0, float(v)) for v in values]
+        results[display_name] = {
+            "months": months,
+            "arrivals": [round(v, 2) for v in values],
+        }
+    if save_to_disk:
+        rows = [
+            {"month": month, **{name: results[name]["arrivals"][i] for name in results}}
+            for i, month in enumerate(months)
+        ]
+        fieldnames = ["month"] + list(results.keys())
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_country = country.replace(" ", "_")
+        path = _save_forecast_csv(
+            rows, fieldnames, f"{safe_country}_forecast_h{horizon}_{timestamp}.csv"
+        )
+        print(f"Forecast exported to: {path}")
+    return results
+
+
 def main():
     print("=" * 60)
     print("Tourism Forecast Prediction")
