@@ -1,21 +1,15 @@
-import LineChart from "./LineChart";
-import { compactNumber, modelColors } from "../lib/format";
+import ModelComparisonChart from "./ModelComparisonChart";
+import { compactNumber } from "../lib/format";
 
 const horizons = [1, 3, 6, 12];
 
-export default function ForecastPanel({ horizon, setHorizon, predictions, onGenerate, loading, isLoggedIn, message }) {
+export default function ForecastPanel({ horizon, setHorizon, predictions, onGenerate, loading, isLoggedIn, message, theme }) {
   const names = Object.keys(predictions || {});
-  const labels = names.length ? predictions[names[0]].months : [];
-  const series = names.map((name) => ({
-    name,
-    values: predictions[name].arrivals,
-    color: modelColors[name] || "#e8e6df"
-  }));
 
   return (
     <section className="panel">
       <div className="panel-head">
-        <span className="panel-title">Model forecast by month</span>
+        <span className="panel-title">Model forecast comparison</span>
         <div className="chip-group">
           <span className="section-meta">Horizon</span>
           {horizons.map((value) => (
@@ -26,11 +20,15 @@ export default function ForecastPanel({ horizon, setHorizon, predictions, onGene
         </div>
       </div>
 
-      <LineChart labels={labels} series={series} emptyText={isLoggedIn ? "Generate a forecast to show model output." : "Login to generate protected forecasts."} />
+      <ModelComparisonChart
+        predictions={predictions}
+        theme={theme}
+        emptyText={isLoggedIn ? "Generate a forecast to compare models." : "Login to generate forecasts."}
+      />
 
       <div className="forecast-actions">
         <button className="primary-btn" type="button" disabled={!isLoggedIn || loading} onClick={onGenerate}>
-          {loading ? "Generating..." : "Generate Forecast"}
+          {loading ? "Generating…" : "Generate Forecast"}
         </button>
         <span className={`message ${message?.error ? "error" : ""}`}>{message?.text}</span>
       </div>

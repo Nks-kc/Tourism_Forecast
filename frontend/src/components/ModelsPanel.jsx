@@ -1,17 +1,16 @@
 import { compactNumber, modelColors } from "../lib/format";
 
-export default function ModelsPanel({ metrics, onRefresh, isLoggedIn, bestModel }) {
+export default function ModelsPanel({ metrics, bestModel }) {
   const names = Object.keys(metrics || {});
 
   return (
     <section className="panel">
       <div className="panel-head">
         <span className="panel-title">Saved model performance</span>
-        <button className="ghost-btn" type="button" disabled={!isLoggedIn} onClick={onRefresh}>Refresh Metrics</button>
+        <span className="section-meta">{names.length ? `${names.length} models` : ""}</span>
       </div>
 
-      {!isLoggedIn && <div className="empty">Login to load saved model metrics.</div>}
-      {isLoggedIn && !names.length && <div className="empty">No metrics loaded yet.</div>}
+      {!names.length && <div className="empty">No metrics loaded yet.</div>}
 
       {names.length > 0 && (
         <table className="model-table">

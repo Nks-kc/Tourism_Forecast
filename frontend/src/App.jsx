@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
-import AccountPanel from "./components/AccountPanel";
 import ForecastPanel from "./components/ForecastPanel";
 import Header from "./components/Header";
 import HistoryPanel from "./components/HistoryPanel";
+import LoginPage from "./components/LoginPage";
 import ModelsPanel from "./components/ModelsPanel";
 import Nav from "./components/Nav";
+import YoYChart from "./components/YoYChart";
+import SeasonalDonutChart from "./components/SeasonalDonutChart";
+import MonthlyAverageChart from "./components/MonthlyAverageChart";
+import AnimatedCounter from "./components/AnimatedCounter";
+import CountryExplorer from "./components/CountryExplorer";
 import {
   clearSession,
   getHealth,
@@ -21,10 +26,11 @@ import {
 } from "./lib/api";
 import { compactNumber } from "./lib/format";
 
+const THEME_KEY = "tourism_theme";
+
 function App() {
   const stored = getStoredSession();
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [apiOnline, setApiOnline] = useState(false);
   const [session, setSession] = useState(stored);
   const [historyFilters, setHistoryFilters] = useState({ start_year: "2016", end_year: "2026", season: "all" });
   const [history, setHistory] = useState(null);
@@ -33,8 +39,21 @@ function App() {
   const [predictions, setPredictions] = useState({});
   const [forecastLoading, setForecastLoading] = useState(false);
   const [metrics, setMetrics] = useState({});
-  const [accountMessage, setAccountMessage] = useState({ text: "Login or create an account to request forecasts." });
+  const [accountMessage, setAccountMessage] = useState({ text: "" });
   const [forecastMessage, setForecastMessage] = useState({ text: "" });
+  const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || "dark");
+
+  const isLoggedIn = Boolean(session.token);
+
+  // Sync theme to DOM
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((t) => (t === "dark" ? "light" : "dark"));
+  }
 
   const bestModel = useMemo(() => {
     const names = Object.keys(metrics || {});
@@ -51,40 +70,40 @@ function App() {
     return { nextArrival, totalForecast, bestMape, datasetLastMonth };
   }, [predictions, bestModel, metrics, history]);
 
+  // Health check
   useEffect(() => {
     getHealth()
       .then(() => setApiOnline(true))
       .catch(() => setApiOnline(false));
   }, []);
 
+  // Load history data on login
   useEffect(() => {
+    if (!isLoggedIn) return;
     let ignore = false;
     setHistoryLoading(true);
     getHistory(historyFilters)
-      .then((data) => {
-        if (!ignore) setHistory(data);
-      })
-      .catch(() => {
-        if (!ignore) setHistory(null);
-      })
-      .finally(() => {
-        if (!ignore) setHistoryLoading(false);
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [historyFilters]);
+      .then((data) => { if (!ignore) setHistory(data); })
+      .catch(() => { if (!ignore) setHistory(null); })
+      .finally(() => { if (!ignore) setHistoryLoading(false); });
+    return () => { ignore = true; };
+  }, [historyFilters, isLoggedIn]);
 
+  // Validate stored session on mount
   useEffect(() => {
     if (!session.token) return;
     getMe(session.token)
       .then((user) => {
         setSession((current) => ({ ...current, username: user.username }));
         storeSession({ token: session.token, username: user.username });
-        setAccountMessage({ text: "Ready to call protected API routes." });
       })
-      .catch(() => handleLogout("Session expired. Login again."));
+      .catch(() => handleLogout("Session expired. Please sign in again."));
   }, []);
+
+  // Load metrics on login
+  useEffect(() => {
+    if (isLoggedIn) loadMetrics();
+  }, [isLoggedIn]);
 
   async function handleLogin(credentials) {
     try {
@@ -92,9 +111,8 @@ function App() {
       const nextSession = { token: data.token, username: data.username };
       setSession(nextSession);
       storeSession(nextSession);
-      setAccountMessage({ text: `Signed in as ${data.username}.` });
+      setAccountMessage({ text: "" });
       setActiveTab("dashboard");
-      await loadMetrics(data.token);
     } catch (error) {
       setAccountMessage({ text: error.message, error: true });
     }
@@ -103,30 +121,26 @@ function App() {
   async function handleRegister(payload) {
     try {
       await registerAccount(payload);
-      setAccountMessage({ text: "Account created. You can login now." });
+      setAccountMessage({ text: "Account created! You can sign in now." });
     } catch (error) {
       setAccountMessage({ text: error.message, error: true });
     }
   }
 
-  function handleLogout(message = "Logged out.") {
+  function handleLogout(message = "") {
     clearSession();
     setSession({ token: "", username: "" });
     setPredictions({});
     setMetrics({});
+    setHistory(null);
     setForecastMessage({ text: "" });
     setAccountMessage({ text: message });
+    setActiveTab("dashboard");
   }
 
   async function generateForecast() {
-    if (!session.token) {
-      setForecastMessage({ text: "Login first.", error: true });
-      setActiveTab("account");
-      return;
-    }
-
     setForecastLoading(true);
-    setForecastMessage({ text: "Generating forecast..." });
+    setForecastMessage({ text: "Generating forecast…" });
     try {
       const data = await getPredictions(horizon, session.token);
       setPredictions(data.predictions || {});
@@ -148,41 +162,86 @@ function App() {
     }
   }
 
+  // ── Not logged in: show login page ──
+  if (!isLoggedIn) {
+    return (
+      <>
+        <Nav activeTab={activeTab} onTabChange={setActiveTab} username="" onLogout={() => {}} theme={theme} onThemeToggle={toggleTheme} />
+        <LoginPage onLogin={handleLogin} onRegister={handleRegister} message={accountMessage} />
+      </>
+    );
+  }
+
+  // ── Logged in: show dashboard ──
   return (
     <>
-      <Nav activeTab={activeTab} onTabChange={setActiveTab} username={session.username} onLogout={() => handleLogout()} />
-      <Header apiOnline={apiOnline} {...heroStats} />
+      <Nav activeTab={activeTab} onTabChange={setActiveTab} username={session.username} onLogout={() => handleLogout()} theme={theme} onThemeToggle={toggleTheme} />
+      <Header {...heroStats} />
       <main className="section">
-        <div className="tab-bar">
-          {["dashboard", "models", "forecast", "account", "about"].map((tab) => (
-            <button key={tab} className={`tab-btn ${activeTab === tab ? "active" : ""}`} type="button" onClick={() => setActiveTab(tab)}>
-              {tab[0].toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
-        </div>
-
         {activeTab === "dashboard" && (
           <>
+            {/* Stat Cards */}
             <div className="stat-grid">
               <StatCard label="Best model" value={bestModel || "--"} tone="teal" sub="Lowest saved test MAPE" />
-              <StatCard label="Records" value={history?.meta?.records || "--"} tone="gold" sub="Current history filter" />
-              <StatCard label="Data range" value={history ? `${history.meta.min_year}-${history.meta.max_year}` : "--"} sub="Foreign arrivals" />
-              <StatCard label="Auth status" value={session.username || "Signed out"} tone={session.username ? "teal" : "red"} sub={session.username ? "Token saved in this browser" : "Login to call protected routes"} />
+              <StatCard label="Records" value={history?.meta?.records} tone="gold" sub="Current history filter" animated />
+              <StatCard label="Data range" value={history ? `${history.meta.min_year}–${history.meta.max_year}` : "--"} sub="Foreign arrivals" />
+              <StatCard label="Signed in as" value={session.username} tone="teal" sub="Token saved in browser" />
             </div>
-            <HistoryPanel filters={historyFilters} setFilters={setHistoryFilters} history={history} loading={historyLoading} />
+
+            {/* Historical arrivals (full width) */}
+            <HistoryPanel filters={historyFilters} setFilters={setHistoryFilters} history={history} loading={historyLoading} theme={theme} />
+
+            {/* Two-column chart grid: YoY + Seasonal Donut */}
+            <div className="dashboard-charts">
+              <section className="panel">
+                <div className="panel-head">
+                  <span className="panel-title">Year-over-year comparison</span>
+                  <span className="section-meta">Monthly arrivals by year</span>
+                </div>
+                <YoYChart records={history?.records || []} theme={theme} />
+              </section>
+
+              <section className="panel">
+                <div className="panel-head">
+                  <span className="panel-title">Seasonal breakdown</span>
+                  <span className="section-meta">Average arrivals by season</span>
+                </div>
+                <SeasonalDonutChart seasonAverage={history?.season_average || []} theme={theme} />
+              </section>
+            </div>
+
+            {/* Monthly average bar chart (full width) */}
+            <section className="panel">
+              <div className="panel-head">
+                <span className="panel-title">Monthly average arrivals</span>
+                <span className="section-meta">{history ? `${history.meta.start_year}–${history.meta.end_year}` : "—"}</span>
+              </div>
+              <MonthlyAverageChart monthlyAverage={history?.monthly_average || []} theme={theme} />
+            </section>
+
+            {/* Forecast panel (consolidated) */}
             <ForecastPanel
               horizon={horizon}
               setHorizon={setHorizon}
               predictions={predictions}
               onGenerate={generateForecast}
               loading={forecastLoading}
-              isLoggedIn={Boolean(session.token)}
+              isLoggedIn={true}
               message={forecastMessage}
+              theme={theme}
             />
+
+            {/* Model metrics (consolidated) */}
+            <ModelsPanel metrics={metrics} bestModel={bestModel} />
           </>
         )}
 
-        {activeTab === "models" && <ModelsPanel metrics={metrics} onRefresh={() => loadMetrics()} isLoggedIn={Boolean(session.token)} bestModel={bestModel} />}
+        {activeTab === "countries" && (
+          <CountryExplorer session={session} theme={theme} />
+        )}
+
+        {activeTab === "models" && <ModelsPanel metrics={metrics} bestModel={bestModel} />}
+
         {activeTab === "forecast" && (
           <ForecastPanel
             horizon={horizon}
@@ -190,13 +249,12 @@ function App() {
             predictions={predictions}
             onGenerate={generateForecast}
             loading={forecastLoading}
-            isLoggedIn={Boolean(session.token)}
+            isLoggedIn={true}
             message={forecastMessage}
+            theme={theme}
           />
         )}
-        {activeTab === "account" && (
-          <AccountPanel username={session.username} onLogin={handleLogin} onRegister={handleRegister} onLogout={() => handleLogout()} message={accountMessage} />
-        )}
+
         {activeTab === "about" && <AboutPanel />}
       </main>
       <footer>
@@ -207,11 +265,17 @@ function App() {
   );
 }
 
-function StatCard({ label, value, tone = "", sub }) {
+function StatCard({ label, value, tone = "", sub, animated = false }) {
   return (
-    <article className="stat-card">
+    <article className="stat-card animate-in">
       <div className="stat-label">{label}</div>
-      <div className={`stat-value ${tone}`}>{typeof value === "number" ? compactNumber(value) : value}</div>
+      <div className={`stat-value ${tone}`}>
+        {animated && typeof value === "number" ? (
+          <AnimatedCounter value={value} />
+        ) : (
+          typeof value === "number" ? compactNumber(value) : value
+        )}
+      </div>
       <div className="stat-sub">{sub}</div>
     </article>
   );
@@ -222,11 +286,19 @@ function AboutPanel() {
     <section className="about-grid">
       <article className="about-card">
         <h3>Project Scope</h3>
-        <p>This app forecasts monthly foreign tourist arrivals in Nepal using engineered seasonal, trend, COVID, and lag features.</p>
+        <p>This app forecasts monthly foreign tourist arrivals to Nepal — both nationwide totals and per-country breakdowns — using four machine learning models with seasonal and trend features.</p>
       </article>
       <article className="about-card">
-        <h3>Frontend Structure</h3>
-        <p>The UI now runs as a Vite React app with componentized dashboard, history, forecast, model, and account flows.</p>
+        <h3>Tech Stack</h3>
+        <p>React 19 frontend with Chart.js interactive visualizations, served by a Flask REST API with JWT authentication, SQLite user storage, and per-country model routing.</p>
+      </article>
+      <article className="about-card">
+        <h3>Models</h3>
+        <p>SARIMA, Holt-Winters exponential smoothing, Linear Regression, and Multi-Layer Perceptron (MLP) neural network — evaluated by MAE, RMSE, and MAPE for both total and per-country series.</p>
+      </article>
+      <article className="about-card">
+        <h3>Data Source</h3>
+        <p>Historical monthly foreign arrivals from 19 source countries, processed with seasonal engineering, trend extraction, COVID-period flagging, and one-hot country encoding.</p>
       </article>
     </section>
   );

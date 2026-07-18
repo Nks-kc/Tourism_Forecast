@@ -10,7 +10,9 @@ export default defineConfig({
       "/health": "http://127.0.0.1:5000",
       "/history": "http://127.0.0.1:5000",
       "/predict": "http://127.0.0.1:5000",
-      "/evaluate": "http://127.0.0.1:5000"
+      "/evaluate": "http://127.0.0.1:5000",
+      "/compare": "http://127.0.0.1:5000",
+      "/countries": "http://127.0.0.1:5000",
     }
   }
 });

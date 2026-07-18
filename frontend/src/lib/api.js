@@ -30,33 +30,42 @@ export async function apiRequest(path, options = {}, token = "") {
   return data;
 }
 
+// ── Health ────────────────────────────────────────────────────
 export function getHealth() {
   return apiRequest("/health");
 }
 
-export function getHistory(filters) {
-  const params = new URLSearchParams(filters);
-  return apiRequest(`/history?${params.toString()}`);
-}
-
+// ── Auth ──────────────────────────────────────────────────────
 export function login(credentials) {
-  return apiRequest("/auth/login", {
-    method: "POST",
-    body: JSON.stringify(credentials)
-  });
+  return apiRequest("/auth/login", { method: "POST", body: JSON.stringify(credentials) });
 }
 
 export function registerAccount(payload) {
-  return apiRequest("/auth/register", {
-    method: "POST",
-    body: JSON.stringify(payload)
-  });
+  return apiRequest("/auth/register", { method: "POST", body: JSON.stringify(payload) });
 }
 
 export function getMe(token) {
   return apiRequest("/auth/me", { method: "GET" }, token);
 }
 
+// ── Nationwide History ────────────────────────────────────────
+export function getHistory(filters) {
+  const params = new URLSearchParams(filters);
+  return apiRequest(`/history?${params.toString()}`);
+}
+
+// ── Countries ─────────────────────────────────────────────────
+export function getCountries() {
+  return apiRequest("/countries");
+}
+
+// ── Per-Country History (public) ──────────────────────────────
+export function getCountryHistory(country, filters = {}) {
+  const params = new URLSearchParams({ country, ...filters });
+  return apiRequest(`/history/country?${params.toString()}`);
+}
+
+// ── Nationwide Predictions ────────────────────────────────────
 export function getPredictions(horizon, token) {
   return apiRequest("/predict", {
     method: "POST",
@@ -64,6 +73,19 @@ export function getPredictions(horizon, token) {
   }, token);
 }
 
+// ── Per-Country Predictions (auth required) ───────────────────
+export function getCountryPredictions(country, horizon, token) {
+  return apiRequest("/predict/country", {
+    method: "POST",
+    body: JSON.stringify({ country, horizon })
+  }, token);
+}
+
+// ── Model Metrics ─────────────────────────────────────────────
 export function getMetrics(token) {
   return apiRequest("/evaluate", { method: "GET" }, token);
+}
+
+export function getCountryMetrics(token) {
+  return apiRequest("/evaluate/country", { method: "GET" }, token);
 }
