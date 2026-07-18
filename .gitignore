@@ -51,6 +51,7 @@ htmlcov/
 *.pt
 *.onnx
 backend/models/saved/
+backend/saved_models/
 backend/models/*.pkl
 
 # Raw datasets (store in cloud/DVC instead)
