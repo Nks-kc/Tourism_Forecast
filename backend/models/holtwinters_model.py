@@ -1,9 +1,9 @@
 import logging
 import os
-import pickle
 import warnings
 import numpy as np
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
+from statsmodels.iolib.smpickle import load_pickle
 from config import HW_TREND, HW_SEASONAL, HW_SEASONAL_PERIODS
 
 warnings.filterwarnings("ignore")
@@ -44,14 +44,12 @@ class HoltWintersModel:
 
     def save_model(self, filepath: str):
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        with open(filepath, "wb") as file:
-            pickle.dump(self.model, file)
+        self.model.save(filepath)
         logger.info("Holt-Winters model saved to %s", filepath)
 
     @classmethod
     def load_model(cls, filepath: str):
-        with open(filepath, "rb") as file:
-            fitted_model = pickle.load(file)
+        fitted_model = load_pickle(filepath)
         model = cls()
         model.model = fitted_model
         model.is_fitted = True

@@ -61,12 +61,23 @@ def predict_total(horizon: int = FORECAST_HORIZON, save_to_disk: bool = False) -
     results = {}
     for model_key in AVAILABLE_MODELS:
         display_name = MODEL_DISPLAY_NAMES[model_key]
-        values = forecast_total(model_name=model_key, horizon=horizon)
-        values = [max(0.0, float(v)) for v in values]
-        results[display_name] = {
-            "months": months,
-            "arrivals": [round(v, 2) for v in values],
-        }
+        try:
+            values = forecast_total(model_name=model_key, horizon=horizon)
+            values = [max(0.0, float(v)) for v in values]
+            results[display_name] = {
+                "months": months,
+                "arrivals": [round(v, 2) for v in values],
+            }
+        except Exception as exc:
+            # Skip models that fail to load or forecast (e.g. pickle version mismatch)
+            import logging
+            logging.getLogger(__name__).warning(
+                "Skipping model '%s' in predict_total: %s", display_name, exc
+            )
+    if not results:
+        raise RuntimeError(
+            "All models failed to generate forecasts. Run 'python train.py' to retrain."
+        )
     if save_to_disk:
         rows = [
             {"month": month, **{name: results[name]["arrivals"][i] for name in results}}

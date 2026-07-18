@@ -10,6 +10,9 @@ from predict import predict_total
 from evaluation.comparison import ModelComparison
 from feature_engineering.data_loader import load_data
 from feature_engineering.constants import SPRING_MONTHS, AUTUMN_MONTHS, MONSOON_MONTHS
+from feature_engineering.dataset import get_available_countries
+from forecasting.forecast import forecast, get_dataset_last_date
+from forecasting.utils import next_month
 from config import (
     API_HOST,
     API_PORT,
@@ -34,6 +37,36 @@ ALLOWED_HORIZONS = [1, 3, 6, 12]
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "message": "Tourism Forecast API is running"})
+
+
+@app.route("/admin/reload", methods=["POST"])
+def admin_reload():
+    """Clear all in-memory caches so freshly trained models are loaded on next request."""
+    from forecasting.forecast import (
+        _cached_dataset,
+        _cached_scalers,
+        _cached_mlp_model,
+        _cached_linear_regression_model,
+        _cached_sarima_model,
+        _cached_holtwinters_model,
+        _cached_total_dataset,
+        _cached_total_scalers,
+        _cached_total_mlp_model,
+        _cached_total_linear_regression_model,
+        _cached_total_sarima_model,
+        _cached_total_holtwinters_model,
+    )
+    cleared = []
+    for fn in [
+        _cached_dataset, _cached_scalers, _cached_mlp_model,
+        _cached_linear_regression_model, _cached_sarima_model, _cached_holtwinters_model,
+        _cached_total_dataset, _cached_total_scalers, _cached_total_mlp_model,
+        _cached_total_linear_regression_model, _cached_total_sarima_model, _cached_total_holtwinters_model,
+        _cached_nationwide_history, _cached_country_history,
+    ]:
+        fn.cache_clear()
+        cleared.append(fn.__name__)
+    return jsonify({"status": "ok", "cleared": cleared})
 
 
 def season_for_month(month):
@@ -195,6 +228,188 @@ def compare(current_user):
         return (jsonify({"error": str(e), "hint": "Run 'python train.py' first."}), 404)
     comparison = ModelComparison.compare(results)
     return jsonify({"comparison": comparison, "requested_by": current_user["username"]})
+
+
+# ── Country endpoints ────────────────────────────────────────
+
+@app.route("/countries", methods=["GET"])
+def countries():
+    try:
+        country_list = get_available_countries()
+        return jsonify({"countries": country_list})
+    except Exception as e:
+        return (jsonify({"error": str(e)}), 500)
+
+
+@lru_cache(maxsize=64)
+def _cached_country_history(country: str) -> pd.DataFrame:
+    """Cache per-country history so repeated requests are fast."""
+    raw_df = load_data()
+    df = raw_df[raw_df["country"] == country].copy()
+    if df.empty:
+        raise ValueError(f"No data found for country '{country}'.")
+    df = df.sort_values("date")
+    df["year"] = df["date"].dt.year
+    df["month"] = df["date"].dt.month
+    df["season"] = df["month"].apply(season_for_month)
+    df["month_name"] = df["date"].dt.strftime("%b")
+    df["date_label"] = df["date"].dt.strftime("%Y-%m")
+    return df
+
+
+@app.route("/history/country", methods=["GET"])
+def history_country():
+    country = request.args.get("country", "").strip()
+    if not country:
+        return (jsonify({"error": "'country' query parameter is required."}), 400)
+    try:
+        df = _cached_country_history(country)
+    except (FileNotFoundError, ValueError) as e:
+        return (jsonify({"error": str(e)}), 404)
+
+    try:
+        start_year = int(request.args.get("start_year", df["year"].min()))
+        end_year = int(request.args.get("end_year", df["year"].max()))
+    except ValueError:
+        return (jsonify({"error": "start_year and end_year must be integers."}), 400)
+    if start_year > end_year:
+        return (jsonify({"error": "start_year cannot be greater than end_year."}), 400)
+
+    filtered = df[(df["year"] >= start_year) & (df["year"] <= end_year)].copy()
+    monthly_average = (
+        filtered.groupby(["month", "month_name"], as_index=False)["arrivals"]
+        .mean()
+        .sort_values("month")
+    )
+    season_average = (
+        filtered.groupby("season", as_index=False)["arrivals"]
+        .mean()
+        .sort_values("arrivals", ascending=False)
+    )
+    records = [
+        {
+            "date": row.date_label,
+            "year": int(row.year),
+            "month": int(row.month),
+            "month_name": row.month_name,
+            "season": row.season,
+            "arrivals": int(row.arrivals),
+        }
+        for row in filtered.itertuples(index=False)
+    ]
+    return jsonify({
+        "meta": {
+            "country": country,
+            "start_year": start_year,
+            "end_year": end_year,
+            "records": len(records),
+            "min_year": int(df["year"].min()),
+            "max_year": int(df["year"].max()),
+        },
+        "records": records,
+        "monthly_average": [
+            {
+                "month": int(row.month),
+                "month_name": row.month_name,
+                "average_arrivals": round(float(row.arrivals), 2),
+            }
+            for row in monthly_average.itertuples(index=False)
+        ],
+        "season_average": [
+            {
+                "season": row.season,
+                "average_arrivals": round(float(row.arrivals), 2),
+            }
+            for row in season_average.itertuples(index=False)
+        ],
+    })
+
+
+AVAILABLE_MODELS_MAP = {
+    "mlp": "MLP",
+    "linear_regression": "Linear Regression",
+    "sarima": "SARIMA",
+    "holtwinters": "Holt-Winters",
+}
+
+
+def _future_month_labels_from(last_date, horizon: int) -> list:
+    labels = []
+    current_date = last_date
+    for _ in range(horizon):
+        current_date = next_month(current_date)
+        labels.append(current_date.strftime("%Y-%m"))
+    return labels
+
+
+@app.route("/predict/country", methods=["POST"])
+@token_required
+def predict_country(current_user):
+    body = request.get_json(silent=True)
+    if not body or "horizon" not in body or "country" not in body:
+        return (
+            jsonify({"error": "Body must contain 'country' and 'horizon'."}),
+            400,
+        )
+    try:
+        horizon = int(body["horizon"])
+    except (ValueError, TypeError):
+        return (jsonify({"error": "'horizon' must be an integer."}), 400)
+    if horizon not in ALLOWED_HORIZONS:
+        return (
+            jsonify({"error": f"'horizon' must be one of {ALLOWED_HORIZONS}."}),
+            400,
+        )
+    country = str(body["country"]).strip()
+    if not country:
+        return (jsonify({"error": "'country' must be a non-empty string."}), 400)
+
+    try:
+        last_date = get_dataset_last_date()
+        months = _future_month_labels_from(last_date, horizon)
+        predictions = {}
+        import logging as _logging
+        _log = _logging.getLogger(__name__)
+        for model_key, display_name in AVAILABLE_MODELS_MAP.items():
+            try:
+                values = forecast(model_name=model_key, country=country, horizon=horizon)
+                values = [max(0.0, float(v)) for v in values]
+                predictions[display_name] = {
+                    "months": months,
+                    "arrivals": [round(v, 2) for v in values],
+                }
+            except Exception as exc:
+                # Skip any model that fails (FileNotFoundError, pickle mismatch, etc.)
+                _log.warning("Skipping model '%s' for country '%s': %s", display_name, country, exc)
+        if not predictions:
+            return (
+                jsonify({"error": f"No models produced forecasts for '{country}'. This may be a pickle version issue. Run 'python train.py' to retrain.", "hint": "Run 'python train.py' first."}),
+                503,
+            )
+        return jsonify({
+            "country": country,
+            "horizon": horizon,
+            "requested_by": current_user["username"],
+            "predictions": predictions,
+        })
+    except (ValueError, KeyError) as e:
+        return (jsonify({"error": str(e)}), 400)
+    except Exception as e:
+        return (jsonify({"error": str(e)}), 500)
+
+
+@app.route("/evaluate/country", methods=["GET"])
+@token_required
+def evaluate_country(current_user):
+    results_path = os.path.join(SAVED_MODELS_DIR, "results_per_country.json")
+    if not os.path.exists(results_path):
+        return (
+            jsonify({"error": "No per-country results found. Run 'python train.py' first."}),
+            404,
+        )
+    with open(results_path) as f:
+        results = json.load(f)
+    return jsonify({"metrics": results, "requested_by": current_user["username"]})
 
 
 @app.route("/", methods=["GET"])
