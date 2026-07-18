@@ -6,9 +6,10 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from auth.models import init_db
 from auth.routes import auth_bp, token_required
-from predict import predict_total
+from predict import predict_total, predict_country
 from evaluation.comparison import ModelComparison
 from feature_engineering.data_loader import load_data
+from feature_engineering.dataset import get_available_countries
 from feature_engineering.constants import SPRING_MONTHS, AUTUMN_MONTHS, MONSOON_MONTHS
 from feature_engineering.dataset import get_available_countries
 from forecasting.forecast import forecast, get_dataset_last_date
@@ -18,7 +19,7 @@ from config import (
     API_PORT,
     SECRET_KEY,
     JWT_SECRET_KEY,
-    SAVED_MODELS_DIR,
+    SAVED_MODELS_DIR
 )
 
 app = Flask(__name__)
@@ -170,6 +171,11 @@ def history():
     )
 
 
+@app.route("/countries", methods=["GET"])
+def countries():
+    return jsonify({"countries": get_available_countries()})
+
+
 @app.route("/predict", methods=["POST"])
 @token_required
 def predict(current_user):
@@ -190,15 +196,22 @@ def predict(current_user):
             jsonify({"error": f"'horizon' must be one of {ALLOWED_HORIZONS}."}),
             400,
         )
+    country = body.get("country") or None
     try:
-        predictions = predict_total(horizon)
+        if country is not None:
+            predictions = predict_country(country, horizon)
+        else:
+            predictions = predict_total(horizon)
         return jsonify(
             {
                 "horizon": horizon,
+                "country": country,
                 "requested_by": current_user["username"],
                 "predictions": predictions,
             }
         )
+    except ValueError as e:
+        return (jsonify({"error": str(e)}), 400)
     except FileNotFoundError as e:
         return (jsonify({"error": str(e), "hint": "Run 'python train.py' first."}), 503)
     except Exception as e:

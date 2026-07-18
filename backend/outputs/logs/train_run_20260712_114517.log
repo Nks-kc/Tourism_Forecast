@@ -1,0 +1,17 @@
+Training run: 2026-07-12T11:45:17.386449 -> 2026-07-12T11:45:53.622146
+Duration: 36.2s
+Countries: ['Australia', 'Bangladesh', 'Canada', 'China', 'France', 'Germany', 'India', 'Italy', 'Japan', 'Malaysia', 'Myanmar', 'Netherlands', 'Others', 'South Korea', 'Spain', 'Sri Lanka', 'Thailand', 'UK', 'USA']
+Per-country feature columns (34): ['month_sin', 'month_cos', 'time_index', 'is_covid', 'is_spring_trek', 'is_autumn_trek', 'is_monsoon', 'lag_1', 'lag_2', 'lag_3', 'lag_12', 'rolling_mean_3', 'rolling_std_3', 'rolling_mean_6', 'rolling_std_6', 'country_Australia', 'country_Bangladesh', 'country_Canada', 'country_China', 'country_France', 'country_Germany', 'country_India', 'country_Italy', 'country_Japan', 'country_Malaysia', 'country_Myanmar', 'country_Netherlands', 'country_Others', 'country_South Korea', 'country_Spain', 'country_Sri Lanka', 'country_Thailand', 'country_UK', 'country_USA']
+Total-series feature columns (15): ['month_sin', 'month_cos', 'time_index', 'is_covid', 'is_spring_trek', 'is_autumn_trek', 'is_monsoon', 'lag_1', 'lag_2', 'lag_3', 'lag_12', 'rolling_mean_3', 'rolling_std_3', 'rolling_mean_6', 'rolling_std_6']
+
+Total-series results (primary -- this is what /predict serves):
+  MLP                  MAE=10289.48  RMSE=13971.10  MAPE=11.79%
+  Linear Regression    MAE=10273.91  RMSE=14349.75  MAPE=10.97%
+  SARIMA               MAE=12706.01  RMSE=14797.91  MAPE=13.57%
+  Holt-Winters         MAE=11926.51  RMSE=14234.99  MAPE=13.89%
+
+Per-country results (averaged across 19 countries; reference only):
+  MLP                  MAE=1152.55  RMSE=1954.37  MAPE=45.71%
+  Linear Regression    MAE=1347.36  RMSE=2470.78  MAPE=62.00%
+  SARIMA               MAE=1111.13  RMSE=1353.63  MAPE=42.19%
+  Holt-Winters         MAE=1137.87  RMSE=1342.57  MAPE=57.35%
