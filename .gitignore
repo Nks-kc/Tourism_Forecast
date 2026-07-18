@@ -1,13 +1,117 @@
+# ============================================================
+# ENVIRONMENT & SECRETS
+# ============================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.json
+
+# ============================================================
+# PYTHON
+# ============================================================
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
-.venv/
+*.so
+
+# Virtual environments
 venv/
-backend/users.db
-frontend/dist/
-frontend/node_modules/
+.venv/
+env/
+ENV/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Type checkers / linters
+.mypy_cache/
+.ruff_cache/
+
+# ============================================================
+# ML MODELS & DATA  <-- Important for your Tourism project!
+# ============================================================
+# Trained model files (large, env-specific, regeneratable)
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.pt
+*.onnx
+backend/models/saved/
+backend/models/*.pkl
+
+# Raw datasets (store in cloud/DVC instead)
+*.csv
+*.xlsx
+*.xls
+
+# Output plots, metrics, forecasts
 backend/outputs/forecasts/*.csv
 backend/outputs/metrics/*.csv
 backend/outputs/plots/*.png
 backend/outputs/plots/*.jpg
+backend/outputs/plots/*.svg
+backend/outputs/
+
+# Training logs
+logs/
+*.log
+runs/
+
+# ============================================================
+# DATABASE
+# ============================================================
+backend/users.db
+*.db
+*.sqlite
+*.sqlite3
+
+# ============================================================
+# REACT / NODE (frontend)
+# ============================================================
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.next/
+frontend/out/
+.vite/
+
+# ============================================================
+# IDE & EDITORS
+# ============================================================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# ============================================================
+# OS FILES
+# ============================================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ============================================================
+# MISC TEMP FILES
+# ============================================================
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
