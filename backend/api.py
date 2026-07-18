@@ -11,7 +11,6 @@ from evaluation.comparison import ModelComparison
 from feature_engineering.data_loader import load_data
 from feature_engineering.dataset import get_available_countries
 from feature_engineering.constants import SPRING_MONTHS, AUTUMN_MONTHS, MONSOON_MONTHS
-from feature_engineering.dataset import get_available_countries
 from forecasting.forecast import forecast, get_dataset_last_date
 from forecasting.utils import next_month
 from config import (
@@ -171,9 +170,7 @@ def history():
     )
 
 
-@app.route("/countries", methods=["GET"])
-def countries():
-    return jsonify({"countries": get_available_countries()})
+
 
 
 @app.route("/predict", methods=["POST"])
