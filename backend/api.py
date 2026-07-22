@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from auth.models import init_db
 from auth.routes import auth_bp, token_required
-from predict import predict_total, predict_country
+from predict import predict_total, predict_country as predict_country_forecast
 from evaluation.comparison import ModelComparison
 from feature_engineering.data_loader import load_data
 from feature_engineering.dataset import get_available_countries
@@ -196,7 +196,7 @@ def predict(current_user):
     country = body.get("country") or None
     try:
         if country is not None:
-            predictions = predict_country(country, horizon)
+            predictions = predict_country_forecast(country, horizon)
         else:
             predictions = predict_total(horizon)
         return jsonify(

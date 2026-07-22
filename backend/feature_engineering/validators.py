@@ -17,6 +17,11 @@ def validate_dataset(df: pd.DataFrame) -> None:
     logger.info("Validating dataset...")
     errors = []
     errors.extend(validate_required_columns(df))
+    if errors:
+        message = "\n".join(errors)
+        logger.error(message)
+        raise ValueError(message)  
+
     errors.extend(validate_duplicate_rows(df))
     errors.extend(validate_negative_values(df))
     errors.extend(validate_missing_values(df))

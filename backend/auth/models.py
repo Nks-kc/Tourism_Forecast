@@ -39,15 +39,14 @@ def _verify_password(plain: str, stored: str) -> bool:
 
 def create_user(username: str, email: str, password: str) -> dict:
     hashed = _hash_password(password)
+    conn = sqlite3.connect(DATABASE_PATH)
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
         cur = conn.execute(
             "INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
             (username.strip(), email.strip().lower(), hashed),
         )
         conn.commit()
         user_id = cur.lastrowid
-        conn.close()
         return {"ok": True, "user_id": user_id}
     except sqlite3.IntegrityError as e:
         msg = str(e)
@@ -58,6 +57,8 @@ def create_user(username: str, email: str, password: str) -> dict:
         return {"ok": False, "error": "Registration failed."}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+    finally:
+        conn.close()
 
 
 def get_user_by_username(username: str) -> dict | None:
