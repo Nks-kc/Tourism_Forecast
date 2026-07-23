@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+import AdminPanel from "./components/AdminPanel";
 import ForecastPanel from "./components/ForecastPanel";
 import Header from "./components/Header";
 import HistoryPanel from "./components/HistoryPanel";
@@ -42,6 +43,7 @@ function App() {
   const [accountMessage, setAccountMessage] = useState({ text: "" });
   const [forecastMessage, setForecastMessage] = useState({ text: "" });
   const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || "dark");
+  const [apiOnline, setApiOnline] = useState(false);
 
   const isLoggedIn = Boolean(session.token);
 
@@ -94,8 +96,9 @@ function App() {
     if (!session.token) return;
     getMe(session.token)
       .then((user) => {
-        setSession((current) => ({ ...current, username: user.username }));
-        storeSession({ token: session.token, username: user.username });
+        const updated = { token: session.token, username: user.username, role: user.role };
+        setSession(updated);
+        storeSession(updated);
       })
       .catch(() => handleLogout("Session expired. Please sign in again."));
   }, []);
@@ -108,7 +111,9 @@ function App() {
   async function handleLogin(credentials) {
     try {
       const data = await login(credentials);
-      const nextSession = { token: data.token, username: data.username };
+      // Fetch full profile to get role
+      const profile = await getMe(data.token).catch(() => ({}));
+      const nextSession = { token: data.token, username: data.username, role: profile.role || "user" };
       setSession(nextSession);
       storeSession(nextSession);
       setAccountMessage({ text: "" });
@@ -129,7 +134,7 @@ function App() {
 
   function handleLogout(message = "") {
     clearSession();
-    setSession({ token: "", username: "" });
+    setSession({ token: "", username: "", role: "" });
     setPredictions({});
     setMetrics({});
     setHistory(null);
@@ -175,7 +180,7 @@ function App() {
   // ── Logged in: show dashboard ──
   return (
     <>
-      <Nav activeTab={activeTab} onTabChange={setActiveTab} username={session.username} onLogout={() => handleLogout()} theme={theme} onThemeToggle={toggleTheme} />
+      <Nav activeTab={activeTab} onTabChange={setActiveTab} username={session.username} role={session.role} onLogout={() => handleLogout()} theme={theme} onThemeToggle={toggleTheme} />
       <Header {...heroStats} />
       <main className="section">
         {activeTab === "dashboard" && (
@@ -256,6 +261,10 @@ function App() {
         )}
 
         {activeTab === "about" && <AboutPanel />}
+
+        {activeTab === "admin" && session.role === "admin" && (
+          <AdminPanel session={session} />
+        )}
       </main>
       <footer>
         <span><strong>Nepal Tourism Forecast</strong> · Flask API + React frontend</span>

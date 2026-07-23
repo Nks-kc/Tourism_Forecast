@@ -8,8 +8,7 @@ import pandas as pd
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from auth.models import init_db
-from auth.routes import auth_bp, token_required
-from auth.routes import auth_bp, token_required, role_required  # add role_required
+from auth.routes import auth_bp, token_required, role_required
 from predict import predict_total, predict_country as predict_country_forecast
 from evaluation.comparison import ModelComparison
 from feature_engineering.data_loader import load_data
@@ -161,8 +160,25 @@ def admin_train_status(current_user):
 @role_required("admin")
 def admin_list_users(current_user):
     from auth.models import list_users
-
     return jsonify({"users": list_users()})
+
+
+@app.route("/admin/users/<username>/role", methods=["PATCH"])
+@token_required
+@role_required("admin")
+def admin_set_user_role(current_user, username):
+    from auth.models import set_user_role, get_user_by_username
+    body = request.get_json(silent=True)
+    if not body or "role" not in body:
+        return (jsonify({"error": "Body must contain 'role'."}), 400)
+    role = body["role"].strip()
+    if role not in ("user", "admin"):
+        return (jsonify({"error": "role must be 'user' or 'admin'."}), 400)
+    if not get_user_by_username(username):
+        return (jsonify({"error": f"User '{username}' not found."}), 404)
+    set_user_role(username, role)
+    return jsonify({"message": f"Role of '{username}' set to '{role}'.", "updated_by": current_user["username"]})
+
 
 def season_for_month(month):
     if month in SPRING_MONTHS:

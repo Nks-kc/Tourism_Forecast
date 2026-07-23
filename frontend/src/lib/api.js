@@ -1,21 +1,25 @@
 const TOKEN_KEY = "tourism_token";
 const USERNAME_KEY = "tourism_username";
+const ROLE_KEY = "tourism_role";
 
 export function getStoredSession() {
   return {
     token: localStorage.getItem(TOKEN_KEY) || "",
-    username: localStorage.getItem(USERNAME_KEY) || ""
+    username: localStorage.getItem(USERNAME_KEY) || "",
+    role: localStorage.getItem(ROLE_KEY) || "",
   };
 }
 
-export function storeSession({ token, username }) {
+export function storeSession({ token, username, role = "" }) {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USERNAME_KEY, username);
+  localStorage.setItem(ROLE_KEY, role);
 }
 
 export function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USERNAME_KEY);
+  localStorage.removeItem(ROLE_KEY);
 }
 
 export async function apiRequest(path, options = {}, token = "") {
@@ -88,4 +92,37 @@ export function getMetrics(token) {
 
 export function getCountryMetrics(token) {
   return apiRequest("/evaluate/country", { method: "GET" }, token);
+}
+
+// ── Admin ─────────────────────────────────────────────────────
+export function adminGetUsers(token) {
+  return apiRequest("/admin/users", { method: "GET" }, token);
+}
+
+export function adminStartTraining(token) {
+  return apiRequest("/admin/train", { method: "POST" }, token);
+}
+
+export function adminGetTrainStatus(token) {
+  return apiRequest("/admin/train/status", { method: "GET" }, token);
+}
+
+export function adminReloadCache(token) {
+  return apiRequest("/admin/reload", { method: "POST" }, token);
+}
+
+export function adminAddData(token, entries, year, month, overwrite = true) {
+  return apiRequest(
+    "/admin/data",
+    { method: "POST", body: JSON.stringify({ entries, year, month, overwrite }) },
+    token
+  );
+}
+
+export function adminSetUserRole(token, username, role) {
+  return apiRequest(
+    `/admin/users/${encodeURIComponent(username)}/role`,
+    { method: "PATCH", body: JSON.stringify({ role }) },
+    token
+  );
 }

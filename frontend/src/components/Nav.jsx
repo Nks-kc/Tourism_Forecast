@@ -5,10 +5,11 @@ const authedTabs = [
   ["countries", "Countries"],
   ["models", "Models"],
   ["forecast", "Forecast"],
-  ["about", "About"]
+  ["about", "About"],
 ];
 
-export default function Nav({ activeTab, onTabChange, username, onLogout, theme, onThemeToggle }) {
+export default function Nav({ activeTab, onTabChange, username, role, onLogout, theme, onThemeToggle }) {
+  const isAdmin = role === "admin";
   return (
     <nav>
       <button className="nav-brand" type="button" onClick={() => onTabChange("dashboard")}>
@@ -25,6 +26,16 @@ export default function Nav({ activeTab, onTabChange, username, onLogout, theme,
                 {label}
               </button>
             ))}
+            {isAdmin && (
+              <button
+                id="nav-admin"
+                className={`nav-btn nav-admin-btn ${activeTab === "admin" ? "active" : ""}`}
+                type="button"
+                onClick={() => onTabChange("admin")}
+              >
+                ⚙ Admin
+              </button>
+            )}
             <ThemeToggle theme={theme} onToggle={onThemeToggle} />
             <span className="nav-user">{username}</span>
             <button className="nav-btn nav-logout" type="button" onClick={onLogout}>Logout</button>
