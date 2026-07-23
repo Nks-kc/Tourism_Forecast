@@ -11,13 +11,21 @@ from config import DATABASE_PATH
 def init_db():
     conn = sqlite3.connect(DATABASE_PATH)
     conn.execute(
-        "\n        CREATE TABLE IF NOT EXISTS users (\n" \
-        "id         INTEGER PRIMARY KEY AUTOINCREMENT,\n" \
-        "username   TEXT    UNIQUE NOT NULL,\n" \
-        "email      TEXT    UNIQUE NOT NULL,\n" \
-        "password   TEXT    NOT NULL,\n" \
-        "created_at TEXT    DEFAULT CURRENT_TIMESTAMP\n)\n"
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            username   TEXT    UNIQUE NOT NULL,
+            email      TEXT    UNIQUE NOT NULL,
+            password   TEXT    NOT NULL,
+            role       TEXT    NOT NULL DEFAULT 'user',
+            created_at TEXT    DEFAULT CURRENT_TIMESTAMP
+        )
+        """
     )
+    # Migration for DBs created before 'role' existed
+    existing_columns = [row[1] for row in conn.execute("PRAGMA table_info(users)")]
+    if "role" not in existing_columns:
+        conn.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
     conn.commit()
     conn.close()
 
@@ -37,13 +45,13 @@ def _verify_password(plain: str, stored: str) -> bool:
         return False
 
 
-def create_user(username: str, email: str, password: str) -> dict:
+def create_user(username: str, email: str, password: str, role: str = "user") -> dict:
     hashed = _hash_password(password)
     conn = sqlite3.connect(DATABASE_PATH)
     try:
         cur = conn.execute(
-            "INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
-            (username.strip(), email.strip().lower(), hashed),
+            "INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)",
+            (username.strip(), email.strip().lower(), hashed, role),
         )
         conn.commit()
         user_id = cur.lastrowid
@@ -83,5 +91,24 @@ def authenticate_user(username: str, password: str) -> dict:
             "id": user["id"],
             "username": user["username"],
             "email": user["email"],
+            "role": user["role"],
         },
     }
+
+def list_users() -> list[dict]:
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT id, username, email, role, created_at FROM users ORDER BY id"
+    ).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def set_user_role(username: str, role: str) -> None:
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.execute(
+        "UPDATE users SET role = ? WHERE username = ?", (role, username.strip())
+    )
+    conn.commit()
+    conn.close()

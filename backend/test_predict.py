@@ -1,4 +1,11 @@
-import sys, json, hmac, hashlib, base64, time, urllib.request, urllib.error
+import sys
+import json
+import hmac
+import hashlib
+import base64
+import time
+import urllib.request
+import urllib.error
 sys.path.insert(0, 'backend')
 
 secret = 'change-this-jwt-secret-in-production'

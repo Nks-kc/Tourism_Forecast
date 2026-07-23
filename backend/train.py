@@ -18,6 +18,7 @@ from config import (
 )
 from feature_engineering.training_data import prepare_training_data
 from feature_engineering.total_series import prepare_total_training_data
+from feature_engineering.pipeline import run_pipeline
 from models.mlp import MLP
 from models.linear_regression_model import LinearRegressionModel
 from models.sarima_model import SARIMAModel
@@ -268,6 +269,12 @@ def main():
     print("=" * 60)
     print("Tourism Forecast Training")
     print("=" * 60)
+
+    print("\n" + "-" * 60)
+    print("Feature Engineering Pipeline")
+    print("-" * 60)
+    run_pipeline()  # regenerate processed_features from the latest raw data
+
     Path(SAVED_MODELS_DIR).mkdir(parents=True, exist_ok=True)
     Path(SAVED_MODELS_TOTAL_DIR).mkdir(parents=True, exist_ok=True)
     Path(OUTPUTS_LOGS_DIR).mkdir(parents=True, exist_ok=True)

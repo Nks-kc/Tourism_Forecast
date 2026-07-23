@@ -1,4 +1,7 @@
 import os
+import sys
+import subprocess
+import threading
 import json
 from functools import lru_cache
 import pandas as pd
@@ -6,9 +9,11 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from auth.models import init_db
 from auth.routes import auth_bp, token_required
+from auth.routes import auth_bp, token_required, role_required  # add role_required
 from predict import predict_total, predict_country as predict_country_forecast
 from evaluation.comparison import ModelComparison
 from feature_engineering.data_loader import load_data
+from feature_engineering.data_ingestion import append_monthly_data, DataIngestionError
 from feature_engineering.dataset import get_available_countries
 from feature_engineering.constants import SPRING_MONTHS, AUTUMN_MONTHS, MONSOON_MONTHS
 from forecasting.forecast import forecast, get_dataset_last_date
@@ -40,7 +45,9 @@ def health():
 
 
 @app.route("/admin/reload", methods=["POST"])
-def admin_reload():
+@token_required
+@role_required("admin")
+def admin_reload(current_user):
     """Clear all in-memory caches so freshly trained models are loaded on next request."""
     from forecasting.forecast import (
         _cached_dataset,
@@ -68,6 +75,94 @@ def admin_reload():
         cleared.append(fn.__name__)
     return jsonify({"status": "ok", "cleared": cleared})
 
+@app.route("/admin/data", methods=["POST"])
+@token_required
+@role_required("admin")
+def admin_add_data(current_user):
+    body = request.get_json(silent=True)
+    if not body or "entries" not in body:
+        return (jsonify({"error": "Body must contain an 'entries' list."}), 400)
+
+    entries = body["entries"]
+    year = body.get("year")
+    month = body.get("month")
+    overwrite = body.get("overwrite", True)
+
+    try:
+        result = append_monthly_data(
+            entries, year=year, month=month, overwrite=overwrite
+        )
+    except DataIngestionError as e:
+        return (jsonify({"error": str(e)}), 400)
+    except FileNotFoundError as e:
+        return (jsonify({"error": str(e)}), 404)
+
+    # New raw rows should show up in history right away
+    _cached_nationwide_history.cache_clear()
+    _cached_country_history.cache_clear()
+
+    return jsonify(
+        {
+            "message": "Data ingested successfully.",
+            "added": result["added"],
+            "updated": result["updated"],
+            "total_rows": result["total_rows"],
+            "note": "Forecasts still reflect the previous dataset. "
+            "Call POST /admin/train to retrain models on the new data.",
+            "added_by": current_user["username"],
+        }
+    )
+
+_training_lock = threading.Lock()
+_training_in_progress = False
+
+
+@app.route("/admin/train", methods=["POST"])
+@token_required
+@role_required("admin")
+def admin_train(current_user):
+    global _training_in_progress
+    if _training_in_progress:
+        return (jsonify({"error": "Training already in progress."}), 409)
+
+    def _run_training():
+        global _training_in_progress
+        with _training_lock:
+            _training_in_progress = True
+            try:
+                subprocess.run(
+                    [sys.executable, "train.py"],
+                    cwd=os.path.dirname(os.path.abspath(__file__)),
+                    check=True,
+                )
+            finally:
+                _training_in_progress = False
+
+    threading.Thread(target=_run_training, daemon=True).start()
+    return (
+        jsonify(
+            {
+                "message": "Model retraining started in the background.",
+                "started_by": current_user["username"],
+            }
+        ),
+        202,
+    )
+
+
+@app.route("/admin/train/status", methods=["GET"])
+@token_required
+@role_required("admin")
+def admin_train_status(current_user):
+    return jsonify({"in_progress": _training_in_progress})
+
+@app.route("/admin/users", methods=["GET"])
+@token_required
+@role_required("admin")
+def admin_list_users(current_user):
+    from auth.models import list_users
+
+    return jsonify({"users": list_users()})
 
 def season_for_month(month):
     if month in SPRING_MONTHS:

@@ -73,6 +73,19 @@ def token_required(f):
 
     return decorated
 
+def role_required(required_role):
+    def wrapper(f):
+        from functools import wraps
+
+        @wraps(f)
+        def decorated(current_user, *args, **kwargs):
+            if current_user.get("role") != required_role:
+                return (jsonify({"error": "Admin access required."}), 403)
+            return f(current_user, *args, **kwargs)
+
+        return decorated
+
+    return wrapper
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
@@ -120,6 +133,7 @@ def login():
         "user_id": user["id"],
         "username": user["username"],
         "email": user["email"],
+        "role": user["role"],  
         "exp": expiry,
     }
     token = _create_token(payload, secret)
@@ -144,6 +158,7 @@ def me(current_user):
                 "user_id": current_user["user_id"],
                 "username": current_user["username"],
                 "email": current_user["email"],
+                "role": current_user.get("role", "user"),
             }
         ),
         200,
