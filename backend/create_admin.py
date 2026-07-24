@@ -6,7 +6,8 @@ Usage:
 """
 
 import sys
-from auth.models import init_db, create_user, get_user_by_username, set_user_role
+
+from auth.models import create_user, get_user_by_username, init_db, set_user_role
 
 
 def main():

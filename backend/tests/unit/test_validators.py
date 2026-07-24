@@ -1,7 +1,7 @@
 # tests/unit/test_validators.py
 import pandas as pd
 import pytest
-from feature_engineering.validators import validate_negative_values, validate_dataset
+from feature_engineering.validators import validate_dataset, validate_negative_values
 
 
 def test_negative_arrivals_flagged():

@@ -1,7 +1,9 @@
-import numpy as np
 import logging
 import pickle
-from config import MLP_HIDDEN_SIZES, MLP_LEARNING_RATE, MLP_EPOCHS, MLP_BATCH_SIZE
+
+import numpy as np
+from config import MLP_BATCH_SIZE, MLP_EPOCHS, MLP_HIDDEN_SIZES, MLP_LEARNING_RATE
+
 from models.scaler import StandardScaler
 
 logger = logging.getLogger(__name__)
@@ -125,8 +127,7 @@ class MLP:
                 val_pred = self.forward(X_val)
                 val_loss = self.compute_loss(val_pred, y_val)
                 history["val_loss"].append(float(val_loss))
-                if val_loss < self.best_loss:
-                    self.best_loss = val_loss
+                self.best_loss = min(self.best_loss, val_loss)
             if verbose and ((epoch + 1) % 100 == 0 or epoch == 0):
                 if val_data is not None:
                     logger.info(

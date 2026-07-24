@@ -1,29 +1,31 @@
 from __future__ import annotations
-from functools import lru_cache
+
+from functools import cache, lru_cache
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from config import (
-    SAVED_MODELS_DIR,
     LR_MODEL_FILENAME,
-    SCALER_FILENAME,
-    SAVED_MODELS_TOTAL_DIR,
-    TOTAL_SCALER_FILENAME,
-    TOTAL_LR_MODEL_FILENAME,
     PROCESSED_TOTAL_CSV,
+    SAVED_MODELS_DIR,
+    SAVED_MODELS_TOTAL_DIR,
+    SCALER_FILENAME,
+    TOTAL_LR_MODEL_FILENAME,
+    TOTAL_SCALER_FILENAME,
+)
+from feature_engineering.constants import SEASON_FLAG_COLUMNS
+from feature_engineering.dataset import (
+    get_feature_columns,
+    get_target_column,
+    load_processed_dataset,
 )
 from forecasting.recursive import RecursiveForecaster
 from forecasting.utils import next_month, update_season_flags
-from feature_engineering.dataset import (
-    load_processed_dataset,
-    get_feature_columns,
-    get_target_column,
-)
-from feature_engineering.constants import SEASON_FLAG_COLUMNS
+from models.holtwinters_model import HoltWintersModel
 from models.linear_regression_model import LinearRegressionModel
 from models.mlp import MLP
 from models.sarima_model import SARIMAModel
-from models.holtwinters_model import HoltWintersModel
 from models.scaler import StandardScaler
 
 
@@ -70,7 +72,7 @@ def _cached_linear_regression_model() -> LinearRegressionModel:
     )
 
 
-@lru_cache(maxsize=None)
+@cache
 def _cached_sarima_model(country: str) -> SARIMAModel:
     filename = _safe_filename(country) + ".pkl"
     model_path = Path(SAVED_MODELS_DIR) / "sarima" / filename
@@ -81,7 +83,7 @@ def _cached_sarima_model(country: str) -> SARIMAModel:
     return SARIMAModel.load_model(str(model_path))
 
 
-@lru_cache(maxsize=None)
+@cache
 def _cached_holtwinters_model(country: str) -> HoltWintersModel:
     filename = _safe_filename(country) + ".pkl"
     model_path = Path(SAVED_MODELS_DIR) / "holtwinters" / filename

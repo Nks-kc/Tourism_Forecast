@@ -1,7 +1,9 @@
 from __future__ import annotations
+
 import logging
 import os
 import pickle
+
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
