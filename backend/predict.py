@@ -1,11 +1,9 @@
 from __future__ import annotations
-
 import csv
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
-
-from config import FORECAST_HORIZON, OUTPUTS_FORECASTS_DIR
 from feature_engineering.dataset import get_available_countries
+from config import FORECAST_HORIZON, OUTPUTS_FORECASTS_DIR
 from forecasting.forecast import (
     forecast,
     forecast_total,
@@ -70,7 +68,7 @@ def predict_total(horizon: int = FORECAST_HORIZON, save_to_disk: bool = False) -
                 "months": months,
                 "arrivals": [round(v, 2) for v in values],
             }
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             # Skip models that fail to load or forecast (e.g. pickle version mismatch)
             import logging
             logging.getLogger(__name__).warning(
@@ -86,7 +84,7 @@ def predict_total(horizon: int = FORECAST_HORIZON, save_to_disk: bool = False) -
             for i, month in enumerate(months)
         ]
         fieldnames = ["month"] + list(results.keys())
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         path = _save_forecast_csv(
             rows, fieldnames, f"nationwide_total_forecast_h{horizon}_{timestamp}.csv"
         )
@@ -120,7 +118,7 @@ def predict_country(
             for i, month in enumerate(months)
         ]
         fieldnames = ["month"] + list(results.keys())
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_country = country.replace(" ", "_")
         path = _save_forecast_csv(
             rows, fieldnames, f"{safe_country}_forecast_h{horizon}_{timestamp}.csv"
@@ -170,7 +168,7 @@ def main():
         {"month": month, "arrivals": round(float(value), 2)}
         for month, value in zip(months, predictions)
     ]
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     path = _save_forecast_csv(
         rows,
         fieldnames=["month", "arrivals"],

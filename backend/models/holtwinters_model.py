@@ -1,11 +1,10 @@
 import logging
 import os
 import warnings
-
 import numpy as np
-from config import HW_SEASONAL, HW_SEASONAL_PERIODS, HW_TREND
-from statsmodels.iolib.smpickle import load_pickle
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
+from statsmodels.iolib.smpickle import load_pickle
+from config import HW_TREND, HW_SEASONAL, HW_SEASONAL_PERIODS
 
 warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)

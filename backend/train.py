@@ -1,34 +1,32 @@
 from __future__ import annotations
-
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
-
 import numpy as np
 from config import (
-    LR_MODEL_FILENAME,
-    OUTPUTS_FORECASTS_DIR,
-    OUTPUTS_LOGS_DIR,
-    OUTPUTS_METRICS_DIR,
-    OUTPUTS_PLOTS_DIR,
-    OUTPUTS_REPORTS_DIR,
     SAVED_MODELS_DIR,
-    SAVED_MODELS_TOTAL_DIR,
+    LR_MODEL_FILENAME,
     SCALER_FILENAME,
-    TOTAL_LR_MODEL_FILENAME,
+    OUTPUTS_LOGS_DIR,
+    OUTPUTS_PLOTS_DIR,
+    OUTPUTS_METRICS_DIR,
+    OUTPUTS_FORECASTS_DIR,
+    OUTPUTS_REPORTS_DIR,
+    SAVED_MODELS_TOTAL_DIR,
     TOTAL_SCALER_FILENAME,
+    TOTAL_LR_MODEL_FILENAME,
 )
-from evaluation.comparison import ModelComparison
-from evaluation.metrics import Metrics
-from evaluation.plotting import plot_model_comparison, plot_training_loss
-from evaluation.report import generate_html_report
-from feature_engineering.pipeline import run_pipeline
-from feature_engineering.total_series import prepare_total_training_data
 from feature_engineering.training_data import prepare_training_data
-from models.holtwinters_model import HoltWintersModel
-from models.linear_regression_model import LinearRegressionModel
+from feature_engineering.total_series import prepare_total_training_data
+from feature_engineering.pipeline import run_pipeline
 from models.mlp import MLP
+from models.linear_regression_model import LinearRegressionModel
 from models.sarima_model import SARIMAModel
+from models.holtwinters_model import HoltWintersModel
+from evaluation.metrics import Metrics
+from evaluation.plotting import plot_training_loss, plot_model_comparison
+from evaluation.comparison import ModelComparison
+from evaluation.report import generate_html_report
 from predict import predict_total
 
 
@@ -122,7 +120,7 @@ def train_sarima(data):
                 or np.max(np.abs(predictions)) > 1000000
             ):
                 raise ValueError("Unstable forecast")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             fallback_count += 1
             print(f"  Default SARIMA failed ({e})")
             print("  Retrying with simpler SARIMA...")
@@ -139,7 +137,7 @@ def train_sarima(data):
                     or np.max(np.abs(predictions)) > 1000000
                 ):
                     raise ValueError("Fallback SARIMA also unstable")
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 print(f"  Skipping {country}: {e}")
                 continue
         metrics = Metrics.evaluate(test_y, predictions)
@@ -240,7 +238,7 @@ def train_sarima_total(data):
             or np.max(np.abs(predictions)) > 1000000
         ):
             raise ValueError("Unstable forecast")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"  Default SARIMA failed ({e})")
         print("  Retrying with simpler SARIMA...")
         model = SARIMAModel(order=(1, 1, 0), seasonal_order=(0, 1, 1, 12))
@@ -267,7 +265,7 @@ def train_holt_winters_total(data):
 
 
 def main():
-    run_started_at = datetime.now(timezone.utc)
+    run_started_at = datetime.now()
     print("=" * 60)
     print("Tourism Forecast Training")
     print("=" * 60)
@@ -330,7 +328,7 @@ def main():
         per_country_results,
         Path(OUTPUTS_PLOTS_DIR) / "model_comparison_per_country.svg",
     )
-    run_finished_at = datetime.now(timezone.utc)
+    run_finished_at = datetime.now()
     _write_training_log(
         per_country_results,
         total_results,

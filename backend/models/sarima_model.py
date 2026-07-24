@@ -1,10 +1,9 @@
 import logging
 import os
 import warnings
-
 import numpy as np
-from config import SARIMA_ORDER, SARIMA_SEASONAL_ORDER
 from statsmodels.tsa.statespace.sarimax import SARIMAX, SARIMAXResults
+from config import SARIMA_ORDER, SARIMA_SEASONAL_ORDER
 
 warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)

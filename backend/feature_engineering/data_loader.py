@@ -1,11 +1,9 @@
 from __future__ import annotations
-
 import logging
 from pathlib import Path
-
 import pandas as pd
 from config import RAW_DATA_FILE
-from feature_engineering.constants import COUNTRY_COLUMN, DATE_COLUMN
+from feature_engineering.constants import DATE_COLUMN, COUNTRY_COLUMN
 from feature_engineering.validators import validate_dataset
 
 logger = logging.getLogger(__name__)

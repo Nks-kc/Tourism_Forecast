@@ -1,18 +1,17 @@
 from __future__ import annotations
-
 import os
 import shutil
 import tempfile
 from pathlib import Path
-
 import pandas as pd
+
 from config import RAW_DATA_FILE
 from feature_engineering.constants import (
-    COUNTRY_COLUMN,
     DATE_COLUMN,
-    MONTH_COLUMN,
+    COUNTRY_COLUMN,
     TARGET_COLUMN,
     YEAR_COLUMN,
+    MONTH_COLUMN,
 )
 
 
@@ -38,7 +37,7 @@ def _normalize_entry(entry: dict, default_year, default_month) -> dict:
     if date_str:
         try:
             date = pd.to_datetime(date_str).replace(day=1)
-        except Exception:  # noqa: BLE001
+        except Exception:
             raise DataIngestionError(f"Invalid date '{date_str}' for '{country}'.")
     else:
         year = entry.get("year", default_year)
@@ -49,7 +48,7 @@ def _normalize_entry(entry: dict, default_year, default_month) -> dict:
             )
         try:
             date = pd.Timestamp(year=int(year), month=int(month), day=1)
-        except Exception:  # noqa: BLE001
+        except Exception:
             raise DataIngestionError(f"Invalid year/month for '{country}'.")
 
     return {

@@ -1,13 +1,12 @@
 from __future__ import annotations
-
 import numpy as np
 import pandas as pd
 from forecasting.utils import (
     next_month,
     update_lag_features,
     update_rolling_features,
-    update_season_flags,
     update_time_features,
+    update_season_flags,
 )
 
 

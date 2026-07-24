@@ -1,15 +1,13 @@
 from __future__ import annotations
-
 from functools import lru_cache
-
 import pandas as pd
 from config import PROCESSED_CSV
 from feature_engineering.constants import (
-    COUNTRY_COLUMN,
     DATE_COLUMN,
+    YEAR_COLUMN,
     MONTH_COLUMN,
     TARGET_COLUMN,
-    YEAR_COLUMN,
+    COUNTRY_COLUMN,
 )
 
 EXCLUDED_COLUMNS = {

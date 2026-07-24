@@ -1,7 +1,6 @@
 # tests/unit/test_jwt.py — auth/routes.py's hand-rolled JWT
-import time
-
 from auth.routes import _create_token, _verify_token
+import time
 
 
 def test_valid_token_round_trips():

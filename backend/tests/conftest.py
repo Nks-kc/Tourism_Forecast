@@ -1,7 +1,7 @@
-import pandas as pd
 import pytest
 from api import app
 from auth.models import init_db
+import pandas as pd
 
 
 @pytest.fixture

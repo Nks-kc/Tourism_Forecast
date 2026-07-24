@@ -4,19 +4,17 @@ Run with: python backend/retrain_hw.py
 This is fast (~30s) and saves compatible .pkl files using statsmodels' own serialization.
 """
 from __future__ import annotations
-
 import sys
 from pathlib import Path
-
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
 
 from config import SAVED_MODELS_DIR, SAVED_MODELS_TOTAL_DIR
-from evaluation.metrics import Metrics
-from feature_engineering.total_series import prepare_total_training_data
 from feature_engineering.training_data import prepare_training_data
+from feature_engineering.total_series import prepare_total_training_data
 from models.holtwinters_model import HoltWintersModel
+from evaluation.metrics import Metrics
 
 
 def retrain_hw_per_country(data):

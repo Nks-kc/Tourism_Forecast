@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from pathlib import Path
 
 _FONT = "font-family='Helvetica, Arial, sans-serif'"

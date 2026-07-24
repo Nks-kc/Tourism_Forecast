@@ -3,7 +3,7 @@ import os
 import subprocess
 import sys
 import threading
-from datetime import datetime, timezone
+from datetime import datetime
 from functools import lru_cache
 
 import pandas as pd
@@ -142,7 +142,7 @@ def admin_train(current_user):
         global _training_in_progress
         with _training_lock:
             _training_in_progress = True
-            started_at = datetime.now(timezone.utc)
+            started_at = datetime.now()
             try:
                 subprocess.run(
                     [sys.executable, "train.py"],
@@ -157,7 +157,7 @@ def admin_train(current_user):
             finally:
                 _training_in_progress = False
 
-            finished_at = datetime.now(timezone.utc)
+            finished_at = datetime.now()
             _send_notification(
                 {
                     "event": "training_completed",

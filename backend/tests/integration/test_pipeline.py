@@ -1,7 +1,7 @@
 # tests/integration/test_pipeline.py
 from feature_engineering.data_loader import prepare_dataframe
-from feature_engineering.features import add_lag_features, add_time_features
 from feature_engineering.preprocessing import preprocess_data
+from feature_engineering.features import add_time_features, add_lag_features
 
 
 def test_full_feature_pipeline_produces_no_nans_after_trim(sample_raw_df):

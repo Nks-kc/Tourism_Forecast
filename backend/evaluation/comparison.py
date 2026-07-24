@@ -1,10 +1,8 @@
 from __future__ import annotations
-
 import json
 from pathlib import Path
-from typing import dict, list
-
-from config import OUTPUTS_METRICS_DIR, OUTPUTS_PLOTS_DIR, SAVED_MODELS_DIR
+from typing import Dict, List
+from config import SAVED_MODELS_DIR, OUTPUTS_METRICS_DIR, OUTPUTS_PLOTS_DIR
 
 METRIC_NAMES = ["MAE", "RMSE", "MAPE"]
 PRIMARY_METRIC = "MAPE"
@@ -12,7 +10,7 @@ PRIMARY_METRIC = "MAPE"
 
 class ModelComparison:
     @staticmethod
-    def load_results(path: str | Path | None = None) -> dict[str, dict]:
+    def load_results(path: str | Path | None = None) -> Dict[str, dict]:
         path = Path(path) if path else Path(SAVED_MODELS_DIR) / "results.json"
         if not path.exists():
             raise FileNotFoundError(
@@ -23,8 +21,8 @@ class ModelComparison:
 
     @staticmethod
     def rank_models(
-        results: dict[str, dict], metric: str = PRIMARY_METRIC
-    ) -> list[tuple[str, float]]:
+        results: Dict[str, dict], metric: str = PRIMARY_METRIC
+    ) -> List[tuple[str, float]]:
         if metric not in METRIC_NAMES:
             raise ValueError(
                 f"Unknown metric '{metric}'. Expected one of {METRIC_NAMES}."
@@ -35,18 +33,18 @@ class ModelComparison:
         )
 
     @classmethod
-    def best_model(cls, results: dict[str, dict], metric: str = PRIMARY_METRIC) -> str:
+    def best_model(cls, results: Dict[str, dict], metric: str = PRIMARY_METRIC) -> str:
         ranking = cls.rank_models(results, metric=metric)
         if not ranking:
             raise ValueError("results is empty; cannot determine best model.")
         return ranking[0][0]
 
     @classmethod
-    def compare(cls, results: dict[str, dict]) -> dict[str, dict]:
+    def compare(cls, results: Dict[str, dict]) -> Dict[str, dict]:
         if not results:
             raise ValueError("results is empty; nothing to compare.")
         overall_best = cls.best_model(results, metric=PRIMARY_METRIC)
-        comparison: dict[str, dict] = {
+        comparison: Dict[str, dict] = {
             name: {"is_best_overall": name == overall_best} for name in results
         }
         for metric in METRIC_NAMES:
@@ -72,7 +70,7 @@ class ModelComparison:
         }
 
     @classmethod
-    def generate_report_text(cls, results: dict[str, dict]) -> str:
+    def generate_report_text(cls, results: Dict[str, dict]) -> str:
         ranking = cls.rank_models(results, metric=PRIMARY_METRIC)
         lines = [
             "=" * 66,
@@ -91,12 +89,12 @@ class ModelComparison:
         return "\n".join(lines)
 
     @classmethod
-    def print_comparison(cls, results: dict[str, dict]) -> None:
+    def print_comparison(cls, results: Dict[str, dict]) -> None:
         print("\n" + cls.generate_report_text(results))
 
     @classmethod
     def save_report(
-        cls, results: dict[str, dict], path: str | Path | None = None
+        cls, results: Dict[str, dict], path: str | Path | None = None
     ) -> None:
         path = (
             Path(path) if path else Path(OUTPUTS_METRICS_DIR) / "comparison_report.txt"

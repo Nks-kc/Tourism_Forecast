@@ -1,15 +1,13 @@
 from __future__ import annotations
-
 import logging
-from typing import list
-
+from typing import List
 import pandas as pd
 from feature_engineering.constants import (
-    COUNTRY_COLUMN,
-    DATE_COLUMN,
-    MIN_ARRIVALS,
     REQUIRED_COLUMNS,
+    DATE_COLUMN,
+    COUNTRY_COLUMN,
     TARGET_COLUMN,
+    MIN_ARRIVALS,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,7 +35,7 @@ def validate_dataset(df: pd.DataFrame) -> None:
     logger.info("Dataset validation completed successfully.")
 
 
-def validate_required_columns(df: pd.DataFrame) -> list[str]:
+def validate_required_columns(df: pd.DataFrame) -> List[str]:
     errors = []
     missing = set(REQUIRED_COLUMNS) - set(df.columns)
     if missing:
@@ -45,7 +43,7 @@ def validate_required_columns(df: pd.DataFrame) -> list[str]:
     return errors
 
 
-def validate_duplicate_rows(df: pd.DataFrame) -> list[str]:
+def validate_duplicate_rows(df: pd.DataFrame) -> List[str]:
     errors = []
     duplicates = df.duplicated(subset=[COUNTRY_COLUMN, DATE_COLUMN])
     if duplicates.any():
@@ -54,7 +52,7 @@ def validate_duplicate_rows(df: pd.DataFrame) -> list[str]:
     return errors
 
 
-def validate_negative_values(df: pd.DataFrame) -> list[str]:
+def validate_negative_values(df: pd.DataFrame) -> List[str]:
     errors = []
     negative = df[TARGET_COLUMN] < MIN_ARRIVALS
     if negative.any():
@@ -63,7 +61,7 @@ def validate_negative_values(df: pd.DataFrame) -> list[str]:
     return errors
 
 
-def validate_missing_values(df: pd.DataFrame) -> list[str]:
+def validate_missing_values(df: pd.DataFrame) -> List[str]:
     errors = []
     missing = df.isnull().sum()
     missing = missing[missing > 0]
@@ -73,16 +71,16 @@ def validate_missing_values(df: pd.DataFrame) -> list[str]:
     return errors
 
 
-def validate_invalid_dates(df: pd.DataFrame) -> list[str]:
+def validate_invalid_dates(df: pd.DataFrame) -> List[str]:
     errors = []
     try:
         pd.to_datetime(df[DATE_COLUMN])
-    except Exception:  # noqa: BLE001
+    except Exception:
         errors.append("Date column contains invalid values.")
     return errors
 
 
-def validate_country_names(df: pd.DataFrame) -> list[str]:
+def validate_country_names(df: pd.DataFrame) -> List[str]:
     errors = []
     countries = df[COUNTRY_COLUMN].astype(str).str.strip()
     invalid = countries == ""
@@ -91,7 +89,7 @@ def validate_country_names(df: pd.DataFrame) -> list[str]:
     return errors
 
 
-def validate_monthly_sequence(df: pd.DataFrame) -> list[str]:
+def validate_monthly_sequence(df: pd.DataFrame) -> List[str]:
     errors = []
     grouped = df.groupby(COUNTRY_COLUMN)
     for country, group in grouped:

@@ -1,11 +1,9 @@
 from __future__ import annotations
-
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
-
-from config import OUTPUTS_PLOTS_DIR, OUTPUTS_REPORTS_DIR, SAVED_MODELS_DIR
-from evaluation.comparison import PRIMARY_METRIC, ModelComparison
+from config import SAVED_MODELS_DIR, OUTPUTS_PLOTS_DIR, OUTPUTS_REPORTS_DIR
+from evaluation.comparison import ModelComparison, PRIMARY_METRIC
 
 
 def _read_svg(path: Path) -> str:
@@ -42,7 +40,7 @@ def generate_html_report(save_path: str | Path | None = None) -> Path:
     best_mape = total_results[best_model]["MAPE"]
     loss_svg = _read_svg(Path(OUTPUTS_PLOTS_DIR) / "mlp_total_training_loss.svg")
     comparison_svg = _read_svg(Path(OUTPUTS_PLOTS_DIR) / "model_comparison.svg")
-    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+    generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
     per_country_section = ""
     if per_country_results:
         per_country_section = f'\n    <h2>Per-country reference</h2>\n    <p class="muted">\n      For context: metrics from training one model per country and\n      averaging their accuracy (19 countries). The Total-series models\n      above -- trained directly on the nationwide aggregate -- are what\n      /predict actually serves, and are consistently far more accurate.\n    </p>\n    {_results_table_html(per_country_results)}\n'

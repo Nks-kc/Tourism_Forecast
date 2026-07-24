@@ -1,9 +1,7 @@
 from __future__ import annotations
-
 import glob
 import logging
 from pathlib import Path
-
 import pandas as pd
 from config import EXTERNAL_DATA_GLOB, INTERIM_RECONCILED_CSV, INTERIM_VALIDATION_REPORT
 from feature_engineering.data_loader import load_data
