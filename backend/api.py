@@ -1,29 +1,34 @@
-import os
-import sys
-import subprocess
-import threading
+import datetime
 import json
+import os
+import subprocess
+import sys
+import threading
 from functools import lru_cache
+
 import pandas as pd
-from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
+import requests
 from auth.models import init_db
-from auth.routes import auth_bp, token_required, role_required
-from predict import predict_total, predict_country as predict_country_forecast
-from evaluation.comparison import ModelComparison
-from feature_engineering.data_loader import load_data
-from feature_engineering.data_ingestion import append_monthly_data, DataIngestionError
-from feature_engineering.dataset import get_available_countries
-from feature_engineering.constants import SPRING_MONTHS, AUTUMN_MONTHS, MONSOON_MONTHS
-from forecasting.forecast import forecast, get_dataset_last_date
-from forecasting.utils import next_month
+from auth.routes import auth_bp, role_required, token_required
 from config import (
     API_HOST,
     API_PORT,
-    SECRET_KEY,
     JWT_SECRET_KEY,
-    SAVED_MODELS_DIR
+    NOTIFICATION_WEBHOOK_URL,
+    SAVED_MODELS_DIR,
+    SECRET_KEY,
 )
+from evaluation.comparison import ModelComparison
+from feature_engineering.constants import AUTUMN_MONTHS, MONSOON_MONTHS, SPRING_MONTHS
+from feature_engineering.data_ingestion import DataIngestionError, append_monthly_data
+from feature_engineering.data_loader import load_data
+from feature_engineering.dataset import get_available_countries
+from flask import Flask, jsonify, request, send_from_directory
+from flask_cors import CORS
+from forecasting.forecast import forecast, get_dataset_last_date
+from forecasting.utils import next_month
+from predict import predict_country as predict_country_forecast
+from predict import predict_total
 
 app = Flask(__name__)
 CORS(app)
@@ -50,17 +55,17 @@ def admin_reload(current_user):
     """Clear all in-memory caches so freshly trained models are loaded on next request."""
     from forecasting.forecast import (
         _cached_dataset,
-        _cached_scalers,
-        _cached_mlp_model,
-        _cached_linear_regression_model,
-        _cached_sarima_model,
         _cached_holtwinters_model,
+        _cached_linear_regression_model,
+        _cached_mlp_model,
+        _cached_sarima_model,
+        _cached_scalers,
         _cached_total_dataset,
-        _cached_total_scalers,
-        _cached_total_mlp_model,
-        _cached_total_linear_regression_model,
-        _cached_total_sarima_model,
         _cached_total_holtwinters_model,
+        _cached_total_linear_regression_model,
+        _cached_total_mlp_model,
+        _cached_total_sarima_model,
+        _cached_total_scalers,
     )
     cleared = []
     for fn in [
@@ -112,6 +117,14 @@ def admin_add_data(current_user):
         }
     )
 
+def _send_notification(payload: dict):
+    if not NOTIFICATION_WEBHOOK_URL:
+        return
+    try:
+        requests.post(NOTIFICATION_WEBHOOK_URL, json=payload, timeout=5)
+    except requests.RequestException as e:
+        app.logger.warning("Notification webhook failed: %s", e)
+
 _training_lock = threading.Lock()
 _training_in_progress = False
 
@@ -120,33 +133,50 @@ _training_in_progress = False
 @token_required
 @role_required("admin")
 def admin_train(current_user):
-    global _training_in_progress
     if _training_in_progress:
         return (jsonify({"error": "Training already in progress."}), 409)
+
+    triggered_by = current_user["username"]
 
     def _run_training():
         global _training_in_progress
         with _training_lock:
             _training_in_progress = True
+            started_at = datetime.now()
             try:
                 subprocess.run(
                     [sys.executable, "train.py"],
                     cwd=os.path.dirname(os.path.abspath(__file__)),
                     check=True,
                 )
+                status = "success"
+                error = None
+            except subprocess.CalledProcessError as e:
+                status = "failed"
+                error = str(e)
             finally:
                 _training_in_progress = False
 
+            finished_at = datetime.now()
+            _send_notification(
+                {
+                    "event": "training_completed",
+                    "status": status,
+                    "error": error,
+                    "started_by": triggered_by,
+                    "started_at": started_at.isoformat(),
+                    "finished_at": finished_at.isoformat(),
+                    "duration_seconds": (finished_at - started_at).total_seconds(),
+                }
+            )
+
     threading.Thread(target=_run_training, daemon=True).start()
-    return (
-        jsonify(
-            {
-                "message": "Model retraining started in the background.",
-                "started_by": current_user["username"],
-            }
-        ),
-        202,
-    )
+    return jsonify(
+        {
+            "message": "Model retraining started in the background.",
+            "started_by": triggered_by,
+        }
+    ), 202
 
 
 @app.route("/admin/train/status", methods=["GET"])
@@ -167,7 +197,7 @@ def admin_list_users(current_user):
 @token_required
 @role_required("admin")
 def admin_set_user_role(current_user, username):
-    from auth.models import set_user_role, get_user_by_username
+    from auth.models import get_user_by_username, set_user_role
     body = request.get_json(silent=True)
     if not body or "role" not in body:
         return (jsonify({"error": "Body must contain 'role'."}), 400)
@@ -322,7 +352,13 @@ def predict(current_user):
         return (jsonify({"error": str(e)}), 400)
     except FileNotFoundError as e:
         return (jsonify({"error": str(e), "hint": "Run 'python train.py' first."}), 503)
-    except Exception as e:
+    except (
+        EOFError,
+        AttributeError,
+        ModuleNotFoundError,
+        ImportError,
+        KeyError,
+    ) as e:
         return (jsonify({"error": str(e)}), 500)
 
 
@@ -358,7 +394,15 @@ def countries():
     try:
         country_list = get_available_countries()
         return jsonify({"countries": country_list})
-    except Exception as e:
+    except (
+        FileNotFoundError,
+        EOFError,
+        AttributeError,
+        ModuleNotFoundError,
+        ImportError,
+        ValueError,
+        KeyError,
+    ) as e:
         return (jsonify({"error": str(e)}), 500)
 
 
@@ -499,9 +543,21 @@ def predict_country(current_user):
                     "months": months,
                     "arrivals": [round(v, 2) for v in values],
                 }
-            except Exception as exc:
-                # Skip any model that fails (FileNotFoundError, pickle mismatch, etc.)
-                _log.warning("Skipping model '%s' for country '%s': %s", display_name, country, exc)
+            except (
+                FileNotFoundError,
+                EOFError,
+                AttributeError,
+                ModuleNotFoundError,
+                ImportError,
+                ValueError,
+                KeyError,
+            ) as exc:
+                _log.warning(
+                    "Skipping model %s for country %s due to error: %s",
+                    model_key,
+                    country,
+                    exc,
+                )
         if not predictions:
             return (
                 jsonify({"error": f"No models produced forecasts for '{country}'. This may be a pickle version issue. Run 'python train.py' to retrain.", "hint": "Run 'python train.py' first."}),
@@ -515,7 +571,13 @@ def predict_country(current_user):
         })
     except (ValueError, KeyError) as e:
         return (jsonify({"error": str(e)}), 400)
-    except Exception as e:
+    except (
+        FileNotFoundError,
+        EOFError,
+        AttributeError,
+        ModuleNotFoundError,
+        ImportError
+    ) as e:
         return (jsonify({"error": str(e)}), 500)
 
 

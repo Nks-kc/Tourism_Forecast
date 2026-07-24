@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+
+load_dotenv()
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -41,6 +44,7 @@ HW_SEASONAL = "add"
 HW_SEASONAL_PERIODS = 12
 API_HOST = "0.0.0.0"
 API_PORT = 5000
+NOTIFICATION_WEBHOOK_URL = os.environ.get("NOTIFICATION_WEBHOOK_URL", "")
 SECRET_KEY = "change-this-to-a-random-secret-in-production"
 JWT_SECRET_KEY = "change-this-jwt-secret-in-production"
 DATABASE_PATH = os.path.join(BASE_DIR, "users.db")
