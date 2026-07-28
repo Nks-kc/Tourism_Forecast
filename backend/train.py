@@ -306,6 +306,7 @@ def main():
     total_results["SARIMA"] = train_sarima_total(total_data)
     total_results["Holt-Winters"] = train_holt_winters_total(total_data)
     Metrics.print_results(total_results)
+    total_results["trained_at"] = datetime.now().isoformat(timespec="seconds")
     Metrics.save_results(total_results, Path(SAVED_MODELS_DIR) / "results.json")
     with open(Path(OUTPUTS_LOGS_DIR) / "mlp_training_history.json", "w") as f:
         json.dump(mlp_history, f, indent=4)

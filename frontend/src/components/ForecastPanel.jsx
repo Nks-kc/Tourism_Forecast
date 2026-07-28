@@ -5,20 +5,57 @@ const horizons = [1, 3, 6, 12];
 
 export default function ForecastPanel({ horizon, setHorizon, predictions, onGenerate, loading, isLoggedIn, message, theme }) {
   const names = Object.keys(predictions || {});
+  const hasData = names.length > 0;
+
+  function handleHorizonChange(value) {
+    setHorizon(value);
+  }
 
   return (
     <section className="panel">
       <div className="panel-head">
         <span className="panel-title">Model forecast comparison</span>
-        <div className="chip-group">
-          <span className="section-meta">Horizon</span>
-          {horizons.map((value) => (
-            <button key={value} className={`chip ${horizon === value ? "active" : ""}`} type="button" onClick={() => setHorizon(value)}>
-              {value} mo
+
+        <div className="panel-head-right">
+          {/* Horizon chips + Regenerate — all one control group */}
+          <div className="forecast-controls">
+            <span className="section-meta">Horizon</span>
+            <div className="chip-group">
+              {horizons.map((value) => (
+                <button
+                  key={value}
+                  className={`chip ${horizon === value ? "active" : ""}`}
+                  type="button"
+                  onClick={() => handleHorizonChange(value)}
+                >
+                  {value} mo
+                </button>
+              ))}
+            </div>
+            <button
+              className="primary-btn forecast-regen-btn"
+              type="button"
+              disabled={!isLoggedIn || loading}
+              onClick={onGenerate}
+            >
+              {loading ? (
+                <>
+                  <span className="regen-spinner" />
+                  Generating…
+                </>
+              ) : hasData ? (
+                "Regenerate"
+              ) : (
+                "Generate"
+              )}
             </button>
-          ))}
+          </div>
         </div>
       </div>
+
+      {message?.text && (
+        <p className={`forecast-message ${message?.error ? "error" : ""}`}>{message.text}</p>
+      )}
 
       <ModelComparisonChart
         predictions={predictions}
@@ -26,14 +63,7 @@ export default function ForecastPanel({ horizon, setHorizon, predictions, onGene
         emptyText={isLoggedIn ? "Generate a forecast to compare models." : "Login to generate forecasts."}
       />
 
-      <div className="forecast-actions">
-        <button className="primary-btn" type="button" disabled={!isLoggedIn || loading} onClick={onGenerate}>
-          {loading ? "Generating…" : "Generate Forecast"}
-        </button>
-        <span className={`message ${message?.error ? "error" : ""}`}>{message?.text}</span>
-      </div>
-
-      {names.length > 0 && (
+      {hasData && (
         <div className="card-grid">
           {names.map((name) => (
             <article className="prediction-card" key={name}>

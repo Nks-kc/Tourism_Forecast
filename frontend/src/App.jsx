@@ -108,6 +108,16 @@ function App() {
     if (isLoggedIn) loadMetrics();
   }, [isLoggedIn]);
 
+  // Auto-generate forecast on login using default horizon — populates both hero and forecast panel
+  useEffect(() => {
+    if (!isLoggedIn || Object.keys(predictions).length > 0) return;
+    setForecastLoading(true);
+    getPredictions(horizon, session.token)
+      .then((data) => setPredictions(data.predictions || {}))
+      .catch(() => {})
+      .finally(() => setForecastLoading(false));
+  }, [isLoggedIn]);
+
   async function handleLogin(credentials) {
     try {
       const data = await login(credentials);
@@ -181,22 +191,30 @@ function App() {
   return (
     <>
       <Nav activeTab={activeTab} onTabChange={setActiveTab} username={session.username} role={session.role} onLogout={() => handleLogout()} theme={theme} onThemeToggle={toggleTheme} />
-      <Header {...heroStats} />
+      {activeTab === "dashboard" && <Header {...heroStats} bestModel={bestModel} forecastLoading={forecastLoading} />}
       <main className="section">
         {activeTab === "dashboard" && (
           <>
-            {/* Stat Cards */}
-            <div className="stat-grid">
-              <StatCard label="Best model" value={bestModel || "--"} tone="teal" sub="Lowest saved test MAPE" />
-              <StatCard label="Records" value={history?.meta?.records} tone="gold" sub="Current history filter" animated />
-              <StatCard label="Data range" value={history ? `${history.meta.min_year}–${history.meta.max_year}` : "--"} sub="Foreign arrivals" />
-              <StatCard label="Signed in as" value={session.username} tone="teal" sub="Token saved in browser" />
+            <ForecastPanel
+              horizon={horizon}
+              setHorizon={setHorizon}
+              predictions={predictions}
+              onGenerate={generateForecast}
+              loading={forecastLoading}
+              isLoggedIn={true}
+              message={forecastMessage}
+              theme={theme}
+            />
+
+            <ModelsPanel metrics={metrics} bestModel={bestModel} />
+
+            {/* ── Zone 2: Historical Analysis ── */}
+            <div className="zone-divider">
+              <span className="zone-label">Historical Analysis</span>
             </div>
 
-            {/* Historical arrivals (full width) */}
             <HistoryPanel filters={historyFilters} setFilters={setHistoryFilters} history={history} loading={historyLoading} theme={theme} />
 
-            {/* Two-column chart grid: YoY + Seasonal Donut */}
             <div className="dashboard-charts">
               <section className="panel">
                 <div className="panel-head">
@@ -215,7 +233,6 @@ function App() {
               </section>
             </div>
 
-            {/* Monthly average bar chart (full width) */}
             <section className="panel">
               <div className="panel-head">
                 <span className="panel-title">Monthly average arrivals</span>
@@ -223,21 +240,6 @@ function App() {
               </div>
               <MonthlyAverageChart monthlyAverage={history?.monthly_average || []} theme={theme} />
             </section>
-
-            {/* Forecast panel (consolidated) */}
-            <ForecastPanel
-              horizon={horizon}
-              setHorizon={setHorizon}
-              predictions={predictions}
-              onGenerate={generateForecast}
-              loading={forecastLoading}
-              isLoggedIn={true}
-              message={forecastMessage}
-              theme={theme}
-            />
-
-            {/* Model metrics (consolidated) */}
-            <ModelsPanel metrics={metrics} bestModel={bestModel} />
           </>
         )}
 
@@ -246,19 +248,6 @@ function App() {
         )}
 
         {activeTab === "models" && <ModelsPanel metrics={metrics} bestModel={bestModel} />}
-
-        {activeTab === "forecast" && (
-          <ForecastPanel
-            horizon={horizon}
-            setHorizon={setHorizon}
-            predictions={predictions}
-            onGenerate={generateForecast}
-            loading={forecastLoading}
-            isLoggedIn={true}
-            message={forecastMessage}
-            theme={theme}
-          />
-        )}
 
         {activeTab === "about" && <AboutPanel />}
 

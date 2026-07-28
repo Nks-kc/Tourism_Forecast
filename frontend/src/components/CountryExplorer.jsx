@@ -29,7 +29,7 @@ export default function CountryExplorer({ session, theme }) {
   const [history, setHistory] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  const [horizon, setHorizon] = useState(6);
+  const [horizon, setHorizon] = useState(3);
   const [predictions, setPredictions] = useState(null);
   const [forecastLoading, setForecastLoading] = useState(false);
   const [forecastMsg, setForecastMsg] = useState({ text: "" });
@@ -58,14 +58,25 @@ export default function CountryExplorer({ session, theme }) {
     return () => { ignore = true; };
   }, [selectedCountry]);
 
+  // Auto-generate 3-month forecast whenever country changes
+  useEffect(() => {
+    if (!selectedCountry || !isLoggedIn) return;
+    let ignore = false;
+    setForecastLoading(true);
+    getCountryPredictions(selectedCountry, 3, session.token)
+      .then((d) => { if (!ignore) setPredictions(d.predictions || {}); })
+      .catch(() => {})
+      .finally(() => { if (!ignore) setForecastLoading(false); });
+    return () => { ignore = true; };
+  }, [selectedCountry, isLoggedIn]);
+
   async function handleForecast() {
     if (!isLoggedIn) return;
     setForecastLoading(true);
-    setForecastMsg({ text: "Generating…" });
+    setForecastMsg({ text: "" });
     try {
       const d = await getCountryPredictions(selectedCountry, horizon, session.token);
       setPredictions(d.predictions || {});
-      setForecastMsg({ text: "Done." });
     } catch (err) {
       setForecastMsg({ text: err.message, error: true });
     } finally {
@@ -142,6 +153,80 @@ export default function CountryExplorer({ session, theme }) {
         </div>
       </div>
 
+      {/* Forecast panel — moved above history */}
+      <section className="panel">
+        <div className="panel-head">
+          <span className="panel-title">
+            Country forecast
+            {selectedCountry && <span className="section-meta" style={{ marginLeft: 8 }}>— {displayName}</span>}
+          </span>
+          <div className="forecast-controls">
+            <span className="section-meta">Horizon</span>
+            <div className="chip-group">
+              {HORIZONS.map((h) => (
+                <button
+                  key={h}
+                  className={`chip ${horizon === h ? "active" : ""}`}
+                  type="button"
+                  onClick={() => { setHorizon(h); setPredictions(null); }}
+                >
+                  {h} mo
+                </button>
+              ))}
+            </div>
+            <button
+              id="btn-country-forecast"
+              className="primary-btn forecast-regen-btn"
+              type="button"
+              disabled={!isLoggedIn || forecastLoading || !selectedCountry}
+              onClick={handleForecast}
+            >
+              {forecastLoading ? (
+                <><span className="regen-spinner" />Generating…</>
+              ) : predictions ? "Regenerate" : "Generate"}
+            </button>
+          </div>
+        </div>
+
+        {forecastMsg.text && (
+          <p className={`forecast-message ${forecastMsg.error ? "error" : ""}`}>{forecastMsg.text}</p>
+        )}
+
+        <ModelComparisonChart
+          predictions={predictions || {}}
+          theme={theme}
+          emptyText={
+            isLoggedIn
+              ? `Select a country and generate a forecast.`
+              : "Login to generate forecasts."
+          }
+        />
+
+        {/* Prediction table */}
+        {predictions && Object.keys(predictions).length > 0 && (
+          <div className="card-grid" style={{ marginTop: 16 }}>
+            {Object.entries(predictions).map(([name, pred]) => (
+              <article className="prediction-card" key={name}>
+                <h3>{name}</h3>
+                <ul className="prediction-list">
+                  {pred.months.map((month, i) => (
+                    <li key={month}>
+                      <span>{month}</span>
+                      <strong>{compactNumber(pred.arrivals[i])}</strong>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Zone divider */}
+      <div className="zone-divider">
+        <span className="zone-label">Historical Analysis</span>
+      </div>
+
       {/* Historical line chart */}
       <section className="panel">
         <div className="panel-head">
@@ -172,78 +257,6 @@ export default function CountryExplorer({ session, theme }) {
           <SeasonalDonutChart seasonAverage={history?.season_average || []} theme={theme} />
         </section>
       </div>
-
-      {/* Forecast panel */}
-      <section className="panel">
-        <div className="panel-head">
-          <span className="panel-title">
-            Country forecast
-            {selectedCountry && <span className="section-meta" style={{ marginLeft: 8 }}>— {displayName}</span>}
-          </span>
-          <div className="chip-group">
-            <span className="section-meta">Horizon</span>
-            {HORIZONS.map((h) => (
-              <button
-                key={h}
-                className={`chip ${horizon === h ? "active" : ""}`}
-                type="button"
-                onClick={() => { setHorizon(h); setPredictions(null); }}
-              >
-                {h} mo
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <ModelComparisonChart
-          predictions={predictions || {}}
-          theme={theme}
-          emptyText={
-            isLoggedIn
-              ? `Select a country and click Generate Forecast.`
-              : "Login to generate forecasts."
-          }
-        />
-
-        <div className="forecast-actions">
-          <button
-            id="btn-country-forecast"
-            className="primary-btn"
-            type="button"
-            disabled={!isLoggedIn || forecastLoading || !selectedCountry}
-            onClick={handleForecast}
-          >
-            {forecastLoading ? "Generating…" : "Generate Forecast"}
-          </button>
-          {!isLoggedIn && (
-            <span className="message">Sign in to generate forecasts</span>
-          )}
-          {forecastMsg.text && (
-            <span className={`message ${forecastMsg.error ? "error" : ""}`}>
-              {forecastMsg.text}
-            </span>
-          )}
-        </div>
-
-        {/* Prediction table */}
-        {predictions && Object.keys(predictions).length > 0 && (
-          <div className="card-grid" style={{ marginTop: 16 }}>
-            {Object.entries(predictions).map(([name, pred]) => (
-              <article className="prediction-card" key={name}>
-                <h3>{name}</h3>
-                <ul className="prediction-list">
-                  {pred.months.map((month, i) => (
-                    <li key={month}>
-                      <span>{month}</span>
-                      <strong>{compactNumber(pred.arrivals[i])}</strong>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
 
       {/* Season breakdown pills */}
       {(history?.season_average || []).length > 0 && (
