@@ -67,17 +67,28 @@ def admin_reload(current_user):
         _cached_total_sarima_model,
         _cached_total_scalers,
     )
+
     cleared = []
     for fn in [
-        _cached_dataset, _cached_scalers, _cached_mlp_model,
-        _cached_linear_regression_model, _cached_sarima_model, _cached_holtwinters_model,
-        _cached_total_dataset, _cached_total_scalers, _cached_total_mlp_model,
-        _cached_total_linear_regression_model, _cached_total_sarima_model, _cached_total_holtwinters_model,
-        _cached_nationwide_history, _cached_country_history,
+        _cached_dataset,
+        _cached_scalers,
+        _cached_mlp_model,
+        _cached_linear_regression_model,
+        _cached_sarima_model,
+        _cached_holtwinters_model,
+        _cached_total_dataset,
+        _cached_total_scalers,
+        _cached_total_mlp_model,
+        _cached_total_linear_regression_model,
+        _cached_total_sarima_model,
+        _cached_total_holtwinters_model,
+        _cached_nationwide_history,
+        _cached_country_history,
     ]:
         fn.cache_clear()
         cleared.append(fn.__name__)
     return jsonify({"status": "ok", "cleared": cleared})
+
 
 @app.route("/admin/data", methods=["POST"])
 @token_required
@@ -117,6 +128,7 @@ def admin_add_data(current_user):
         }
     )
 
+
 def _send_notification(payload: dict):
     if not NOTIFICATION_WEBHOOK_URL:
         return
@@ -124,6 +136,7 @@ def _send_notification(payload: dict):
         requests.post(NOTIFICATION_WEBHOOK_URL, json=payload, timeout=5)
     except requests.RequestException as e:
         app.logger.warning("Notification webhook failed: %s", e)
+
 
 _training_lock = threading.Lock()
 _training_in_progress = False
@@ -185,11 +198,13 @@ def admin_train(current_user):
 def admin_train_status(current_user):
     return jsonify({"in_progress": _training_in_progress})
 
+
 @app.route("/admin/users", methods=["GET"])
 @token_required
 @role_required("admin")
 def admin_list_users(current_user):
     from auth.models import list_users
+
     return jsonify({"users": list_users()})
 
 
@@ -198,6 +213,7 @@ def admin_list_users(current_user):
 @role_required("admin")
 def admin_set_user_role(current_user, username):
     from auth.models import get_user_by_username, set_user_role
+
     body = request.get_json(silent=True)
     if not body or "role" not in body:
         return (jsonify({"error": "Body must contain 'role'."}), 400)
@@ -206,8 +222,18 @@ def admin_set_user_role(current_user, username):
         return (jsonify({"error": "role must be 'user' or 'admin'."}), 400)
     if not get_user_by_username(username):
         return (jsonify({"error": f"User '{username}' not found."}), 404)
-    set_user_role(username, role)
-    return jsonify({"message": f"Role of '{username}' set to '{role}'.", "updated_by": current_user["username"]})
+    # set_user_role refuses the change and returns ok=False if `username` is
+    # the permanent admin and `role` would demote them -- this applies even
+    # if current_user (the caller) is that same permanent admin.
+    result = set_user_role(username, role)
+    if not result["ok"]:
+        return (jsonify({"error": result["error"]}), 403)
+    return jsonify(
+        {
+            "message": f"Role of '{username}' set to '{role}'.",
+            "updated_by": current_user["username"],
+        }
+    )
 
 
 def season_for_month(month):
@@ -311,9 +337,6 @@ def history():
     )
 
 
-
-
-
 @app.route("/predict", methods=["POST"])
 @token_required
 def predict(current_user):
@@ -389,6 +412,7 @@ def compare(current_user):
 
 # ── Country endpoints ────────────────────────────────────────
 
+
 @app.route("/countries", methods=["GET"])
 def countries():
     try:
@@ -462,32 +486,34 @@ def history_country():
         }
         for row in filtered.itertuples(index=False)
     ]
-    return jsonify({
-        "meta": {
-            "country": country,
-            "start_year": start_year,
-            "end_year": end_year,
-            "records": len(records),
-            "min_year": int(df["year"].min()),
-            "max_year": int(df["year"].max()),
-        },
-        "records": records,
-        "monthly_average": [
-            {
-                "month": int(row.month),
-                "month_name": row.month_name,
-                "average_arrivals": round(float(row.arrivals), 2),
-            }
-            for row in monthly_average.itertuples(index=False)
-        ],
-        "season_average": [
-            {
-                "season": row.season,
-                "average_arrivals": round(float(row.arrivals), 2),
-            }
-            for row in season_average.itertuples(index=False)
-        ],
-    })
+    return jsonify(
+        {
+            "meta": {
+                "country": country,
+                "start_year": start_year,
+                "end_year": end_year,
+                "records": len(records),
+                "min_year": int(df["year"].min()),
+                "max_year": int(df["year"].max()),
+            },
+            "records": records,
+            "monthly_average": [
+                {
+                    "month": int(row.month),
+                    "month_name": row.month_name,
+                    "average_arrivals": round(float(row.arrivals), 2),
+                }
+                for row in monthly_average.itertuples(index=False)
+            ],
+            "season_average": [
+                {
+                    "season": row.season,
+                    "average_arrivals": round(float(row.arrivals), 2),
+                }
+                for row in season_average.itertuples(index=False)
+            ],
+        }
+    )
 
 
 AVAILABLE_MODELS_MAP = {
@@ -534,10 +560,13 @@ def predict_country(current_user):
         months = _future_month_labels_from(last_date, horizon)
         predictions = {}
         import logging as _logging
+
         _log = _logging.getLogger(__name__)
         for model_key, display_name in AVAILABLE_MODELS_MAP.items():
             try:
-                values = forecast(model_name=model_key, country=country, horizon=horizon)
+                values = forecast(
+                    model_name=model_key, country=country, horizon=horizon
+                )
                 values = [max(0.0, float(v)) for v in values]
                 predictions[display_name] = {
                     "months": months,
@@ -560,15 +589,22 @@ def predict_country(current_user):
                 )
         if not predictions:
             return (
-                jsonify({"error": f"No models produced forecasts for '{country}'. This may be a pickle version issue. Run 'python train.py' to retrain.", "hint": "Run 'python train.py' first."}),
+                jsonify(
+                    {
+                        "error": f"No models produced forecasts for '{country}'. This may be a pickle version issue. Run 'python train.py' to retrain.",
+                        "hint": "Run 'python train.py' first.",
+                    }
+                ),
                 503,
             )
-        return jsonify({
-            "country": country,
-            "horizon": horizon,
-            "requested_by": current_user["username"],
-            "predictions": predictions,
-        })
+        return jsonify(
+            {
+                "country": country,
+                "horizon": horizon,
+                "requested_by": current_user["username"],
+                "predictions": predictions,
+            }
+        )
     except (ValueError, KeyError) as e:
         return (jsonify({"error": str(e)}), 400)
     except (
@@ -576,7 +612,7 @@ def predict_country(current_user):
         EOFError,
         AttributeError,
         ModuleNotFoundError,
-        ImportError
+        ImportError,
     ) as e:
         return (jsonify({"error": str(e)}), 500)
 
@@ -587,7 +623,9 @@ def evaluate_country(current_user):
     results_path = os.path.join(SAVED_MODELS_DIR, "results_per_country.json")
     if not os.path.exists(results_path):
         return (
-            jsonify({"error": "No per-country results found. Run 'python train.py' first."}),
+            jsonify(
+                {"error": "No per-country results found. Run 'python train.py' first."}
+            ),
             404,
         )
     with open(results_path) as f:

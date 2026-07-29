@@ -5,27 +5,32 @@ import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import DATABASE_PATH
+import config
 
 
 def init_db():
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = sqlite3.connect(config.DATABASE_PATH)
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS users (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            username   TEXT    UNIQUE NOT NULL,
-            email      TEXT    UNIQUE NOT NULL,
-            password   TEXT    NOT NULL,
-            role       TEXT    NOT NULL DEFAULT 'user',
-            created_at TEXT    DEFAULT CURRENT_TIMESTAMP
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            username     TEXT    UNIQUE NOT NULL,
+            email        TEXT    UNIQUE NOT NULL,
+            password     TEXT    NOT NULL,
+            role         TEXT    NOT NULL DEFAULT 'user',
+            is_permanent INTEGER NOT NULL DEFAULT 0,
+            created_at   TEXT    DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
-    # Migration for DBs created before 'role' existed
+    # Migrations for DBs created before these columns existed
     existing_columns = [row[1] for row in conn.execute("PRAGMA table_info(users)")]
     if "role" not in existing_columns:
         conn.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
+    if "is_permanent" not in existing_columns:
+        conn.execute(
+            "ALTER TABLE users ADD COLUMN is_permanent INTEGER NOT NULL DEFAULT 0"
+        )
     conn.commit()
     conn.close()
 
@@ -47,7 +52,7 @@ def _verify_password(plain: str, stored: str) -> bool:
 
 def create_user(username: str, email: str, password: str, role: str = "user") -> dict:
     hashed = _hash_password(password)
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = sqlite3.connect(config.DATABASE_PATH)
     try:
         cur = conn.execute(
             "INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)",
@@ -70,7 +75,7 @@ def create_user(username: str, email: str, password: str, role: str = "user") ->
 
 
 def get_user_by_username(username: str) -> dict | None:
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = sqlite3.connect(config.DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     row = conn.execute(
         "SELECT * FROM users WHERE username = ?", (username.strip(),)
@@ -92,23 +97,84 @@ def authenticate_user(username: str, password: str) -> dict:
             "username": user["username"],
             "email": user["email"],
             "role": user["role"],
+            "is_permanent": bool(user.get("is_permanent", 0)),
         },
     }
 
+
 def list_users() -> list[dict]:
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = sqlite3.connect(config.DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     rows = conn.execute(
-        "SELECT id, username, email, role, created_at FROM users ORDER BY id"
+        "SELECT id, username, email, role, is_permanent, created_at "
+        "FROM users ORDER BY id"
     ).fetchall()
     conn.close()
     return [dict(row) for row in rows]
 
 
-def set_user_role(username: str, role: str) -> None:
-    conn = sqlite3.connect(DATABASE_PATH)
+def set_user_role(username: str, role: str) -> dict:
+    """Change a user's role.
+
+    Refuses to change the role of the permanent admin account (is_permanent = 1)
+    away from 'admin' — this applies no matter who is making the request,
+    including the permanent admin trying to demote themselves.
+    """
+    conn = sqlite3.connect(config.DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT is_permanent FROM users WHERE username = ?", (username.strip(),)
+    ).fetchone()
+    if row is None:
+        conn.close()
+        return {"ok": False, "error": f"User '{username}' not found."}
+    if row["is_permanent"] and role != "admin":
+        conn.close()
+        return {
+            "ok": False,
+            "error": "This account is the permanent administrator and cannot be demoted.",
+        }
     conn.execute(
         "UPDATE users SET role = ? WHERE username = ?", (role, username.strip())
     )
     conn.commit()
     conn.close()
+    return {"ok": True}
+
+
+def set_permanent_admin(username: str) -> dict:
+    """Mark an existing user as the permanent admin: promotes them to 'admin'
+    (if needed) and sets is_permanent = 1, so no admin — including this user —
+    can ever demote this account through the normal role-change endpoint.
+
+    Intended to be run once, deliberately, e.g. from create_admin.py, rather
+    than being reachable through any API route.
+    """
+    conn = sqlite3.connect(config.DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT id, role FROM users WHERE username = ?", (username.strip(),)
+    ).fetchone()
+    if row is None:
+        conn.close()
+        return {"ok": False, "error": f"User '{username}' not found."}
+
+    other_permanent = conn.execute(
+        "SELECT username FROM users WHERE is_permanent = 1 AND username != ?",
+        (username.strip(),),
+    ).fetchone()
+
+    conn.execute(
+        "UPDATE users SET role = 'admin', is_permanent = 1 WHERE id = ?",
+        (row["id"],),
+    )
+    conn.commit()
+    conn.close()
+
+    result = {"ok": True}
+    if other_permanent:
+        result["warning"] = (
+            f"'{other_permanent['username']}' was already a permanent admin. "
+            f"There are now two permanent admin accounts."
+        )
+    return result

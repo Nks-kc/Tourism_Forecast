@@ -8,7 +8,7 @@ import base64
 from flask import Blueprint, request, jsonify, current_app
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from auth.models import create_user, authenticate_user
+from auth.models import create_user, authenticate_user, get_user_by_username
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 TOKEN_EXPIRY_HOURS = 24
@@ -73,19 +73,42 @@ def token_required(f):
 
     return decorated
 
+
 def role_required(required_role):
+    """Gate a route behind a role, checked fresh against the database.
+
+    The role stored in the JWT payload reflects whatever the user's role was
+    at *login* time. If an admin is later demoted, their existing token would
+    otherwise keep saying role="admin" until it expires (up to
+    TOKEN_EXPIRY_HOURS later), letting them keep using admin routes, including
+    re-promoting themselves. Looking the role up from the database on every
+    request closes that gap: a demoted user loses admin access on their very
+    next request, regardless of what their token claims.
+    """
+
     def wrapper(f):
         from functools import wraps
 
         @wraps(f)
         def decorated(current_user, *args, **kwargs):
-            if current_user.get("role") != required_role:
+            db_user = get_user_by_username(current_user.get("username", ""))
+            if not db_user:
+                return (
+                    jsonify({"error": "User no longer exists. Please login again."}),
+                    401,
+                )
+            if db_user["role"] != required_role:
                 return (jsonify({"error": "Admin access required."}), 403)
+            # Refresh current_user with the live DB values so the view function
+            # (and anything it does with current_user) never sees a stale role.
+            current_user["role"] = db_user["role"]
+            current_user["is_permanent"] = bool(db_user.get("is_permanent", 0))
             return f(current_user, *args, **kwargs)
 
         return decorated
 
     return wrapper
+
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
@@ -133,7 +156,7 @@ def login():
         "user_id": user["id"],
         "username": user["username"],
         "email": user["email"],
-        "role": user["role"],  
+        "role": user["role"],
         "exp": expiry,
     }
     token = _create_token(payload, secret)
@@ -152,13 +175,23 @@ def login():
 @auth_bp.route("/me", methods=["GET"])
 @token_required
 def me(current_user):
+    # Read the role fresh from the database rather than trusting the token
+    # payload, so a demoted user immediately sees (and is granted) their
+    # correct, current role instead of whatever role they had at login time.
+    db_user = get_user_by_username(current_user.get("username", ""))
+    if not db_user:
+        return (
+            jsonify({"error": "User no longer exists. Please login again."}),
+            401,
+        )
     return (
         jsonify(
             {
-                "user_id": current_user["user_id"],
-                "username": current_user["username"],
-                "email": current_user["email"],
-                "role": current_user.get("role", "user"),
+                "user_id": db_user["id"],
+                "username": db_user["username"],
+                "email": db_user["email"],
+                "role": db_user["role"],
+                "is_permanent_admin": bool(db_user.get("is_permanent", 0)),
             }
         ),
         200,

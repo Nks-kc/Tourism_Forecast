@@ -125,8 +125,7 @@ class MLP:
                 val_pred = self.forward(X_val)
                 val_loss = self.compute_loss(val_pred, y_val)
                 history["val_loss"].append(float(val_loss))
-                if val_loss < self.best_loss:
-                    self.best_loss = val_loss
+                self.best_loss = min(self.best_loss, val_loss)
             if verbose and ((epoch + 1) % 100 == 0 or epoch == 0):
                 if val_data is not None:
                     logger.info(
