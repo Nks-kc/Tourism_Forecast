@@ -77,8 +77,12 @@ class TotalTrainingData:
 
 
 def prepare_total_training_data(test_months: int = TEST_MONTHS) -> TotalTrainingData:
-    if not Path(PROCESSED_TOTAL_CSV).exists():
-        build_total_features()
+    # Always rebuild from the database rather than reusing whatever CSV
+    # happens to already be on disk -- otherwise a stale
+    # tourism_total_features.csv from a previous run (e.g. before a DB
+    # migration or a seed-data update) silently gets reused forever, since
+    # its mere existence used to be enough to skip regeneration.
+    build_total_features()
     df = pd.read_csv(PROCESSED_TOTAL_CSV)
     feature_columns = get_feature_columns(df)
     target_column = get_target_column()
