@@ -1,14 +1,15 @@
+import base64
+import hashlib
+import hmac
+import json
 import os
 import sys
-import json
-import hmac
-import hashlib
 import time
-import base64
-from flask import Blueprint, request, jsonify, current_app
+
+from flask import Blueprint, current_app, jsonify, request
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from auth.models import create_user, authenticate_user, get_user_by_username
+from auth.models import authenticate_user, create_user, get_user_by_username
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 TOKEN_EXPIRY_HOURS = 24

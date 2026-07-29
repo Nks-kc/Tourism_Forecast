@@ -16,12 +16,13 @@ Usage:
 """
 
 import sys
+
 from auth.models import (
-    init_db,
     create_user,
     get_user_by_username,
-    set_user_role,
+    init_db,
     set_permanent_admin,
+    set_user_role,
 )
 
 

@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 import csv
 from datetime import datetime, timezone
 from pathlib import Path
-from feature_engineering.dataset import get_available_countries
+
 from config import FORECAST_HORIZON, OUTPUTS_FORECASTS_DIR
+from feature_engineering.dataset import get_available_countries
 from forecasting.forecast import (
     forecast,
     forecast_total,

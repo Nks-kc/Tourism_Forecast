@@ -1,7 +1,9 @@
-import numpy as np
 import logging
 import pickle
-from config import MLP_HIDDEN_SIZES, MLP_LEARNING_RATE, MLP_EPOCHS, MLP_BATCH_SIZE
+
+import numpy as np
+from config import MLP_BATCH_SIZE, MLP_EPOCHS, MLP_HIDDEN_SIZES, MLP_LEARNING_RATE
+
 from models.scaler import StandardScaler
 
 logger = logging.getLogger(__name__)

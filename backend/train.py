@@ -1,28 +1,30 @@
 from __future__ import annotations
+
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+
 import numpy as np
 from config import (
-    SAVED_MODELS_DIR,
     LR_MODEL_FILENAME,
-    SCALER_FILENAME,
+    OUTPUTS_FORECASTS_DIR,
     OUTPUTS_LOGS_DIR,
     OUTPUTS_METRICS_DIR,
-    OUTPUTS_FORECASTS_DIR,
+    SAVED_MODELS_DIR,
     SAVED_MODELS_TOTAL_DIR,
-    TOTAL_SCALER_FILENAME,
+    SCALER_FILENAME,
     TOTAL_LR_MODEL_FILENAME,
+    TOTAL_SCALER_FILENAME,
 )
-from feature_engineering.training_data import prepare_training_data
-from feature_engineering.total_series import prepare_total_training_data
-from feature_engineering.pipeline import run_pipeline
-from models.mlp import MLP
-from models.linear_regression_model import LinearRegressionModel
-from models.sarima_model import SARIMAModel
-from models.holtwinters_model import HoltWintersModel
-from evaluation.metrics import Metrics
 from evaluation.comparison import ModelComparison
+from evaluation.metrics import Metrics
+from feature_engineering.pipeline import run_pipeline
+from feature_engineering.total_series import prepare_total_training_data
+from feature_engineering.training_data import prepare_training_data
+from models.holtwinters_model import HoltWintersModel
+from models.linear_regression_model import LinearRegressionModel
+from models.mlp import MLP
+from models.sarima_model import SARIMAModel
 from predict import predict_total
 
 
@@ -315,12 +317,13 @@ def main():
         data,
         total_data,
     )
-    total_results["trained_at"] = datetime.now(tz=timezone.utc).isoformat(
-        timespec="seconds"
-    )
     comparison = ModelComparison.compare(total_results)
     ModelComparison.save_comparison(comparison)
     ModelComparison.save_report(total_results)
+    total_results["trained_at"] = datetime.now(tz=timezone.utc).isoformat(
+        timespec="seconds"
+    )
+    Metrics.save_results(total_results, Path(SAVED_MODELS_DIR) / "results.json")
     predict_total(save_to_disk=True)
     print("\nTraining completed successfully.")
     print(f"Models saved to: {SAVED_MODELS_DIR} and {SAVED_MODELS_TOTAL_DIR}")

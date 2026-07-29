@@ -1,13 +1,24 @@
 from __future__ import annotations
+
 import json
 from pathlib import Path
-from config import SAVED_MODELS_DIR, OUTPUTS_METRICS_DIR
+
+from config import OUTPUTS_METRICS_DIR, SAVED_MODELS_DIR
 
 METRIC_NAMES = ["MAE", "RMSE", "MAPE"]
 PRIMARY_METRIC = "MAPE"
 
 
 class ModelComparison:
+    @staticmethod
+    def _metric_results(results: dict) -> dict[str, dict]:
+        return {
+            name: values
+            for name, values in results.items()
+            if isinstance(values, dict)
+            and all(metric in values for metric in METRIC_NAMES)
+        }
+
     @staticmethod
     def load_results(path: str | Path | None = None) -> dict[str, dict]:
         path = Path(path) if path else Path(SAVED_MODELS_DIR) / "results.json"
@@ -26,8 +37,9 @@ class ModelComparison:
             raise ValueError(
                 f"Unknown metric '{metric}'. Expected one of {METRIC_NAMES}."
             )
+        metrics = ModelComparison._metric_results(results)
         return sorted(
-            ((name, values[metric]) for name, values in results.items()),
+            ((name, values[metric]) for name, values in metrics.items()),
             key=lambda pair: pair[1],
         )
 
@@ -40,11 +52,12 @@ class ModelComparison:
 
     @classmethod
     def compare(cls, results: dict[str, dict]) -> dict[str, dict]:
-        if not results:
+        metrics = cls._metric_results(results)
+        if not metrics:
             raise ValueError("results is empty; nothing to compare.")
-        overall_best = cls.best_model(results, metric=PRIMARY_METRIC)
+        overall_best = cls.best_model(metrics, metric=PRIMARY_METRIC)
         comparison: dict[str, dict] = {
-            name: {"is_best_overall": name == overall_best} for name in results
+            name: {"is_best_overall": name == overall_best} for name in metrics
         }
         for metric in METRIC_NAMES:
             ranking = cls.rank_models(results, metric=metric)
@@ -70,7 +83,8 @@ class ModelComparison:
 
     @classmethod
     def generate_report_text(cls, results: dict[str, dict]) -> str:
-        ranking = cls.rank_models(results, metric=PRIMARY_METRIC)
+        metrics = cls._metric_results(results)
+        ranking = cls.rank_models(metrics, metric=PRIMARY_METRIC)
         lines = [
             "=" * 66,
             f"Model Comparison (ranked by {PRIMARY_METRIC}, lower is better)",
@@ -79,10 +93,10 @@ class ModelComparison:
             "-" * 66,
         ]
         for rank, (name, _) in enumerate(ranking, start=1):
-            metrics = results[name]
+            model_metrics = metrics[name]
             marker = " <- best" if rank == 1 else ""
             lines.append(
-                f"{rank:<6}{name:<22}{metrics['MAE']:>10.2f}{metrics['RMSE']:>10.2f}{metrics['MAPE']:>9.2f}%{marker}"
+                f"{rank:<6}{name:<22}{model_metrics['MAE']:>10.2f}{model_metrics['RMSE']:>10.2f}{model_metrics['MAPE']:>9.2f}%{marker}"
             )
         lines.append("=" * 66)
         return "\n".join(lines)
