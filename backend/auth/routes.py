@@ -43,7 +43,7 @@ def _verify_token(token: str, secret: str) -> dict | None:
         if payload.get("exp", 0) < time.time():
             return None
         return payload
-    except Exception:
+    except (ValueError, KeyError, UnicodeDecodeError):
         return None
 
 

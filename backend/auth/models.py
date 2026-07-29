@@ -46,7 +46,7 @@ def _verify_password(plain: str, stored: str) -> bool:
         salt, hsh = stored.split("$", 1)
         expected = hmac.new(salt.encode(), plain.encode(), hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, hsh)
-    except Exception:
+    except ValueError:
         return False
 
 
@@ -68,7 +68,7 @@ def create_user(username: str, email: str, password: str, role: str = "user") ->
         if "email" in msg:
             return {"ok": False, "error": "Email already registered."}
         return {"ok": False, "error": "Registration failed."}
-    except Exception as e:
+    except sqlite3.Error as e:
         return {"ok": False, "error": str(e)}
     finally:
         conn.close()

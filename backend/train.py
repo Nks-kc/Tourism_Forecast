@@ -1,6 +1,6 @@
 from __future__ import annotations
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import numpy as np
 from config import (
@@ -8,10 +8,8 @@ from config import (
     LR_MODEL_FILENAME,
     SCALER_FILENAME,
     OUTPUTS_LOGS_DIR,
-    OUTPUTS_PLOTS_DIR,
     OUTPUTS_METRICS_DIR,
     OUTPUTS_FORECASTS_DIR,
-    OUTPUTS_REPORTS_DIR,
     SAVED_MODELS_TOTAL_DIR,
     TOTAL_SCALER_FILENAME,
     TOTAL_LR_MODEL_FILENAME,
@@ -24,9 +22,7 @@ from models.linear_regression_model import LinearRegressionModel
 from models.sarima_model import SARIMAModel
 from models.holtwinters_model import HoltWintersModel
 from evaluation.metrics import Metrics
-from evaluation.plotting import plot_training_loss, plot_model_comparison
 from evaluation.comparison import ModelComparison
-from evaluation.report import generate_html_report
 from predict import predict_total
 
 
@@ -120,7 +116,7 @@ def train_sarima(data):
                 or np.max(np.abs(predictions)) > 1000000
             ):
                 raise ValueError("Unstable forecast")
-        except Exception as e:
+        except (ValueError, RuntimeError) as e:
             fallback_count += 1
             print(f"  Default SARIMA failed ({e})")
             print("  Retrying with simpler SARIMA...")
@@ -137,7 +133,7 @@ def train_sarima(data):
                     or np.max(np.abs(predictions)) > 1000000
                 ):
                     raise ValueError("Fallback SARIMA also unstable")
-            except Exception as e:
+            except (ValueError, RuntimeError) as e:
                 print(f"  Skipping {country}: {e}")
                 continue
         metrics = Metrics.evaluate(test_y, predictions)
@@ -238,7 +234,7 @@ def train_sarima_total(data):
             or np.max(np.abs(predictions)) > 1000000
         ):
             raise ValueError("Unstable forecast")
-    except Exception as e:
+    except (ValueError, RuntimeError) as e:
         print(f"  Default SARIMA failed ({e})")
         print("  Retrying with simpler SARIMA...")
         model = SARIMAModel(order=(1, 1, 0), seasonal_order=(0, 1, 1, 12))
@@ -265,7 +261,7 @@ def train_holt_winters_total(data):
 
 
 def main():
-    run_started_at = datetime.now()
+    run_started_at = datetime.now(tz=timezone.utc)
     print("=" * 60)
     print("Tourism Forecast Training")
     print("=" * 60)
@@ -278,7 +274,6 @@ def main():
     Path(SAVED_MODELS_DIR).mkdir(parents=True, exist_ok=True)
     Path(SAVED_MODELS_TOTAL_DIR).mkdir(parents=True, exist_ok=True)
     Path(OUTPUTS_LOGS_DIR).mkdir(parents=True, exist_ok=True)
-    Path(OUTPUTS_PLOTS_DIR).mkdir(parents=True, exist_ok=True)
     print("\n" + "-" * 60)
     print("Per-country models")
     print("-" * 60)
@@ -306,30 +301,12 @@ def main():
     total_results["SARIMA"] = train_sarima_total(total_data)
     total_results["Holt-Winters"] = train_holt_winters_total(total_data)
     Metrics.print_results(total_results)
-    total_results["trained_at"] = datetime.now().isoformat(timespec="seconds")
     Metrics.save_results(total_results, Path(SAVED_MODELS_DIR) / "results.json")
     with open(Path(OUTPUTS_LOGS_DIR) / "mlp_training_history.json", "w") as f:
         json.dump(mlp_history, f, indent=4)
     with open(Path(OUTPUTS_LOGS_DIR) / "mlp_total_training_history.json", "w") as f:
         json.dump(mlp_total_history, f, indent=4)
-    plot_training_loss(
-        mlp_history,
-        Path(OUTPUTS_PLOTS_DIR) / "mlp_training_loss.svg",
-        title="MLP Training Loss (per-country)",
-    )
-    plot_training_loss(
-        mlp_total_history,
-        Path(OUTPUTS_PLOTS_DIR) / "mlp_total_training_loss.svg",
-        title="MLP Training Loss (Total series)",
-    )
-    plot_model_comparison(
-        total_results, Path(OUTPUTS_PLOTS_DIR) / "model_comparison.svg"
-    )
-    plot_model_comparison(
-        per_country_results,
-        Path(OUTPUTS_PLOTS_DIR) / "model_comparison_per_country.svg",
-    )
-    run_finished_at = datetime.now()
+    run_finished_at = datetime.now(tz=timezone.utc)
     _write_training_log(
         per_country_results,
         total_results,
@@ -338,16 +315,17 @@ def main():
         data,
         total_data,
     )
+    total_results["trained_at"] = datetime.now(tz=timezone.utc).isoformat(
+        timespec="seconds"
+    )
     comparison = ModelComparison.compare(total_results)
     ModelComparison.save_comparison(comparison)
     ModelComparison.save_report(total_results)
-    report_path = generate_html_report()
-    print(f"HTML comparison report saved to: {report_path}")
     predict_total(save_to_disk=True)
     print("\nTraining completed successfully.")
     print(f"Models saved to: {SAVED_MODELS_DIR} and {SAVED_MODELS_TOTAL_DIR}")
     print(
-        f"Diagnostics saved to: {OUTPUTS_LOGS_DIR}, {OUTPUTS_PLOTS_DIR}, {OUTPUTS_METRICS_DIR}, {OUTPUTS_FORECASTS_DIR}, and {OUTPUTS_REPORTS_DIR}"
+        f"Diagnostics saved to: {OUTPUTS_LOGS_DIR}, {OUTPUTS_METRICS_DIR}, and {OUTPUTS_FORECASTS_DIR}"
     )
 
 
