@@ -1,17 +1,13 @@
 from __future__ import annotations
-import os
-import shutil
-import tempfile
-from pathlib import Path
-import pandas as pd
 
-from config import RAW_DATA_FILE
+import data_store
+import pandas as pd
 from feature_engineering.constants import (
-    DATE_COLUMN,
     COUNTRY_COLUMN,
+    DATE_COLUMN,
+    MONTH_COLUMN,
     TARGET_COLUMN,
     YEAR_COLUMN,
-    MONTH_COLUMN,
 )
 
 
@@ -37,7 +33,7 @@ def _normalize_entry(entry: dict, default_year, default_month) -> dict:
     if date_str:
         try:
             date = pd.to_datetime(date_str).replace(day=1)
-        except ValueError:
+        except (ValueError, TypeError):
             raise DataIngestionError(f"Invalid date '{date_str}' for '{country}'.")
     else:
         year = entry.get("year", default_year)
@@ -48,7 +44,7 @@ def _normalize_entry(entry: dict, default_year, default_month) -> dict:
             )
         try:
             date = pd.Timestamp(year=int(year), month=int(month), day=1)
-        except ValueError:
+        except (ValueError, TypeError):
             raise DataIngestionError(f"Invalid year/month for '{country}'.")
 
     return {
@@ -67,7 +63,7 @@ def append_monthly_data(
     overwrite: bool = True,
 ) -> dict:
     """
-    Add or update one or more country/month arrival records in the raw dataset.
+    Add or update one or more country/month arrival records in the database.
 
     Each entry needs 'country' and 'arrivals', plus either its own 'date'
     (YYYY-MM-DD) or it will fall back to the shared top-level year/month.
@@ -78,42 +74,44 @@ def append_monthly_data(
         raise DataIngestionError("No entries provided.")
 
     new_rows = [_normalize_entry(e, year, month) for e in entries]
-    new_df = pd.DataFrame(new_rows)
 
-    raw_path = Path(RAW_DATA_FILE)
-    if not raw_path.exists():
-        raise FileNotFoundError(f"Raw dataset not found at {raw_path}")
+    data_store.init_tourism_tables()
+    conn = data_store._connect()
+    try:
+        added, updated = [], []
+        for row in new_rows:
+            date_str = row[DATE_COLUMN].strftime("%Y-%m-%d")
+            label = f"{row[COUNTRY_COLUMN]} ({row[DATE_COLUMN].strftime('%Y-%m')})"
+            exists = conn.execute(
+                "SELECT 1 FROM country_arrivals WHERE date = ? AND country = ?",
+                (date_str, row[COUNTRY_COLUMN]),
+            ).fetchone()
+            if exists:
+                if not overwrite:
+                    raise DataIngestionError(f"Data for {label} already exists.")
+                updated.append(label)
+            else:
+                added.append(label)
+    finally:
+        conn.close()
 
-    existing_df = pd.read_csv(raw_path)
-    existing_df[DATE_COLUMN] = pd.to_datetime(existing_df[DATE_COLUMN])
-
-    added, updated = [], []
-    for _, row in new_df.iterrows():
-        mask = (existing_df[COUNTRY_COLUMN] == row[COUNTRY_COLUMN]) & (
-            existing_df[DATE_COLUMN] == row[DATE_COLUMN]
-        )
-        label = f"{row[COUNTRY_COLUMN]} ({row[DATE_COLUMN].strftime('%Y-%m')})"
-        if mask.any():
-            if not overwrite:
-                raise DataIngestionError(f"Data for {label} already exists.")
-            existing_df.loc[mask, TARGET_COLUMN] = row[TARGET_COLUMN]
-            updated.append(label)
-        else:
-            existing_df = pd.concat([existing_df, row.to_frame().T], ignore_index=True)
-            added.append(label)
-
-    existing_df[DATE_COLUMN] = pd.to_datetime(existing_df[DATE_COLUMN])
-    existing_df = existing_df.sort_values([COUNTRY_COLUMN, DATE_COLUMN]).reset_index(
-        drop=True
+    data_store.upsert_country_arrivals(
+        [
+            {
+                "date": row[DATE_COLUMN],
+                "country": row[COUNTRY_COLUMN],
+                "arrivals": row[TARGET_COLUMN],
+                "year": row[YEAR_COLUMN],
+                "month": row[MONTH_COLUMN],
+            }
+            for row in new_rows
+        ]
     )
-    existing_df[YEAR_COLUMN] = existing_df[DATE_COLUMN].dt.year
-    existing_df[MONTH_COLUMN] = existing_df[DATE_COLUMN].dt.month
-    existing_df[DATE_COLUMN] = existing_df[DATE_COLUMN].dt.strftime("%Y-%m-%d")
 
-    # Atomic write so a crash mid-write can't corrupt the dataset
-    fd, tmp_path = tempfile.mkstemp(dir=raw_path.parent, suffix=".csv")
-    os.close(fd)
-    existing_df.to_csv(tmp_path, index=False)
-    shutil.move(tmp_path, raw_path)
+    conn = data_store._connect()
+    try:
+        total_rows = conn.execute("SELECT COUNT(*) FROM country_arrivals").fetchone()[0]
+    finally:
+        conn.close()
 
-    return {"added": added, "updated": updated, "total_rows": len(existing_df)}
+    return {"added": added, "updated": updated, "total_rows": total_rows}

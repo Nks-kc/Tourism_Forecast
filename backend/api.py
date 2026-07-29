@@ -248,12 +248,11 @@ def season_for_month(month):
 
 @lru_cache(maxsize=1)
 def _cached_nationwide_history() -> pd.DataFrame:
-    raw_df = load_data()
-    df = (
-        raw_df.groupby("date", as_index=False)
-        .agg(arrivals=("arrivals", "sum"))
-        .sort_values("date")
-    )
+    from data_store import load_national_arrivals
+
+    df = load_national_arrivals().copy()
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date")
     df["year"] = df["date"].dt.year
     df["month"] = df["date"].dt.month
     df["season"] = df["month"].apply(season_for_month)

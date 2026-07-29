@@ -1,12 +1,14 @@
 from __future__ import annotations
+
 import logging
+
 import pandas as pd
 from feature_engineering.constants import (
-    REQUIRED_COLUMNS,
-    DATE_COLUMN,
     COUNTRY_COLUMN,
-    TARGET_COLUMN,
+    DATE_COLUMN,
     MIN_ARRIVALS,
+    REQUIRED_COLUMNS,
+    TARGET_COLUMN,
 )
 
 logger = logging.getLogger(__name__)

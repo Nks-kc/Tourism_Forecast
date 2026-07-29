@@ -1,32 +1,50 @@
 from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from config import PROCESSED_TOTAL_CSV, TEST_MONTHS
-from feature_engineering.constants import DATE_COLUMN, COUNTRY_COLUMN, TARGET_COLUMN
-from feature_engineering.cross_validation import run_cross_validation
-from feature_engineering.preprocessing import preprocess_data
-from feature_engineering.features import (
-    add_time_features,
-    add_rolling_features,
-    remove_initial_rolling_rows,
-    add_lag_features,
-    remove_initial_nan_rows,
-)
+from data_store import load_national_arrivals
+from feature_engineering.constants import COUNTRY_COLUMN, DATE_COLUMN
 from feature_engineering.dataset import get_feature_columns, get_target_column
+from feature_engineering.features import (
+    add_lag_features,
+    add_rolling_features,
+    add_time_features,
+    remove_initial_nan_rows,
+    remove_initial_rolling_rows,
+)
+from feature_engineering.preprocessing import preprocess_data
+from feature_engineering.validators import validate_dataset
 from models.scaler import StandardScaler
 
 logger = logging.getLogger(__name__)
 TOTAL_PSEUDO_COUNTRY = "Total"
 
 
-def build_total_features(reconciled_df: pd.DataFrame | None = None) -> pd.DataFrame:
-    if reconciled_df is None:
-        reconciled_df = run_cross_validation()
-    total_df = reconciled_df.groupby(DATE_COLUMN, as_index=False)[TARGET_COLUMN].sum()
-    total_df[COUNTRY_COLUMN] = TOTAL_PSEUDO_COUNTRY
+def load_national_data() -> pd.DataFrame:
+    """Load the official nationwide monthly total straight from the database
+    (national_arrivals table -- seeded from tourism_monthly_corrected.csv,
+    NOT derived by summing country_arrivals). Adds a constant pseudo-country
+    column so it can flow through the same per-series feature functions
+    (add_time_features, add_lag_features, ...) that group by country."""
+    logger.info("Loading nationwide dataset from the database...")
+    df = load_national_arrivals()
+    df[COUNTRY_COLUMN] = TOTAL_PSEUDO_COUNTRY
+    df[DATE_COLUMN] = pd.to_datetime(df[DATE_COLUMN])
+    df = df.sort_values(DATE_COLUMN).reset_index(drop=True)
+    validate_dataset(df)
+    logger.info("Nationwide dataset loaded successfully (%d rows).", len(df))
+    return df
+
+
+def build_total_features(national_df: pd.DataFrame | None = None) -> pd.DataFrame:
+    if national_df is None:
+        national_df = load_national_data()
+    total_df = national_df.copy()
     total_df = preprocess_data(total_df)
     total_df = add_time_features(total_df)
     total_df = add_lag_features(total_df)

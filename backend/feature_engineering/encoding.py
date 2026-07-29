@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import logging
+
 import pandas as pd
 from feature_engineering.constants import COUNTRY_COLUMN
 
