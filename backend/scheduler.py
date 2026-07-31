@@ -22,7 +22,7 @@ def scan_all_watchlists() -> None:
         try:
             created = run_watchlist_alerts(user["id"])
             total_created += len(created)
-        except Exception:  # noqa: BLE001 -- one user's failure shouldn't stop the scan
+        except Exception:
             logger.exception("Watchlist alert scan failed for user_id=%s", user["id"])
     logger.info(
         "Watchlist alert scan complete: %d notification(s) created.", total_created
