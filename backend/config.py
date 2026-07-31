@@ -24,11 +24,6 @@ INTERIM_RECONCILED_CSV = os.path.join(
 INTERIM_VALIDATION_REPORT = os.path.join(DATA_INTERIM_DIR, "validation_report.txt")
 PROCESSED_TOTAL_CSV = os.path.join(DATA_PROCESSED_DIR, "tourism_total_features.csv")
 
-# --- Data storage -----------------------------------------------------------
-# The app's canonical copy of both datasets lives in SQLite (same DB file as
-# the users table). SEED_COUNTRY_CSV / SEED_NATIONAL_CSV are only read once,
-# by migrate_data_to_db.py, to populate that database on a fresh setup --
-# nothing at request-serving time reads these CSVs directly.
 SEED_COUNTRY_CSV = RAW_DATA_FILE
 SEED_NATIONAL_CSV = os.path.join(DATA_RAW_DIR, "tourism_monthly_corrected.csv")
 TEST_MONTHS = 12
@@ -55,3 +50,19 @@ NOTIFICATION_WEBHOOK_URL = os.environ.get("NOTIFICATION_WEBHOOK_URL", "")
 SECRET_KEY = "change-this-to-a-random-secret-in-production"
 JWT_SECRET_KEY = "change-this-jwt-secret-in-production"
 DATABASE_PATH = os.path.join(BASE_DIR, "users.db")
+
+SMTP_HOST = os.environ.get("SMTP_HOST", "")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+SMTP_FROM_EMAIL = os.environ.get("SMTP_FROM_EMAIL", "no-reply@tourism-forecast.local")
+SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "true").lower() != "false"
+OTP_LENGTH = 6
+OTP_TTL_SECONDS = 60
+OTP_MAX_REQUESTS_PER_WINDOW = int(os.environ.get("OTP_MAX_REQUESTS_PER_WINDOW", "5"))
+OTP_REQUEST_WINDOW_SECONDS = int(os.environ.get("OTP_REQUEST_WINDOW_SECONDS", "3600"))
+
+ENABLE_ALERT_SCHEDULER = (
+    os.environ.get("ENABLE_ALERT_SCHEDULER", "true").lower() != "false"
+)
+ALERT_SCAN_INTERVAL_MINUTES = int(os.environ.get("ALERT_SCAN_INTERVAL_MINUTES", "60"))

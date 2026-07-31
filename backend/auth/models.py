@@ -74,12 +74,47 @@ def create_user(username: str, email: str, password: str, role: str = "user") ->
         conn.close()
 
 
+def create_user_from_hash(
+    username: str, email: str, hashed_password: str, role: str = "user"
+) -> dict:
+    """Insert a user whose password has already been hashed -- used when
+    promoting a pending registration to a real account after OTP
+    verification, so the password isn't hashed twice."""
+    conn = sqlite3.connect(config.DATABASE_PATH)
+    try:
+        cur = conn.execute(
+            "INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)",
+            (username.strip(), email.strip().lower(), hashed_password, role),
+        )
+        conn.commit()
+        return {"ok": True, "user_id": cur.lastrowid}
+    except sqlite3.IntegrityError as e:
+        msg = str(e)
+        if "username" in msg:
+            return {"ok": False, "error": "Username already taken."}
+        if "email" in msg:
+            return {"ok": False, "error": "Email already registered."}
+        return {"ok": False, "error": "Registration failed."}
+    except sqlite3.Error as e:
+        return {"ok": False, "error": str(e)}
+    finally:
+        conn.close()
+
+
 def get_user_by_username(username: str) -> dict | None:
     conn = sqlite3.connect(config.DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     row = conn.execute(
         "SELECT * FROM users WHERE username = ?", (username.strip(),)
     ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_user_by_id(user_id: int) -> dict | None:
+    conn = sqlite3.connect(config.DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     conn.close()
     return dict(row) if row else None
 
