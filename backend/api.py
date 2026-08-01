@@ -11,8 +11,6 @@ import requests
 from auth.models import init_db
 from auth.otp import init_otp_tables as init_auth_otp_tables
 from auth.routes import auth_bp, role_required, token_required
-from watchlist.models import init_watchlist_table
-from watchlist.routes import watchlist_bp
 from config import (
     ALERT_SCAN_INTERVAL_MINUTES,
     API_HOST,
@@ -41,13 +39,8 @@ from preferences_routes import preferences_bp
 from report_store import init_reports_table
 from reports_routes import reports_bp
 from scheduler import running_under_pytest, start_scheduler
-from watchlist import (
-    get_last_viewed,
-    get_watchlist,
-    init_watchlist_tables,
-    set_last_viewed,
-)
-from watchlist_routes import watchlist_bp
+from watchlist import get_last_viewed, get_watchlist, init_watchlist_tables, set_last_viewed
+from watchlist.routes import watchlist_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -58,7 +51,6 @@ app.register_blueprint(watchlist_bp)
 app.register_blueprint(preferences_bp)
 app.register_blueprint(notifications_bp)
 app.register_blueprint(reports_bp)
-app.register_blueprint(watchlist_bp)
 init_db()
 init_auth_otp_tables()
 init_watchlist_tables()
@@ -68,7 +60,6 @@ init_reports_table()
 
 if ENABLE_ALERT_SCHEDULER and not running_under_pytest():
     start_scheduler(ALERT_SCAN_INTERVAL_MINUTES)
-init_watchlist_table()
 FRONTEND_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "frontend")
 )

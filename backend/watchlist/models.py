@@ -93,3 +93,91 @@ def get_watchlist_count(user_id: int) -> int:
     ).fetchone()
     conn.close()
     return row[0]
+
+
+# ── Last-viewed helpers ───────────────────────────────────────────────────────
+
+
+def _init_last_viewed_table(conn: sqlite3.Connection) -> None:
+    """Create the last_viewed table if it does not exist (called inside an
+    already-open connection so the caller can commit in one shot)."""
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS last_viewed (
+            user_id    INTEGER PRIMARY KEY,
+            country    TEXT,
+            dashboard  TEXT,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+
+def init_watchlist_tables() -> None:
+    """Create both the watchlist table and the last_viewed table.
+    Safe to call repeatedly — uses IF NOT EXISTS throughout."""
+    conn = _connect()
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS watchlist (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            country   TEXT    NOT NULL CHECK(length(country) >= 1 AND length(country) <= 100),
+            pinned_at TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, country)
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_watchlist_user_id ON watchlist(user_id)"
+    )
+    _init_last_viewed_table(conn)
+    conn.commit()
+    conn.close()
+
+
+def get_last_viewed(user_id: int) -> dict | None:
+    """Return the last-viewed state for user_id, or None if never set."""
+    conn = _connect()
+    row = conn.execute(
+        "SELECT country, dashboard, updated_at FROM last_viewed WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def set_last_viewed(
+    user_id: int, country: str | None = None, dashboard: str | None = None
+) -> None:
+    """Upsert the last-viewed country/dashboard for user_id.
+    Pass only the field(s) you want to update; the other will be preserved."""
+    from datetime import datetime, timezone
+
+    conn = _connect()
+    _init_last_viewed_table(conn)
+    now = datetime.now(tz=timezone.utc).isoformat()
+    existing = conn.execute(
+        "SELECT country, dashboard FROM last_viewed WHERE user_id = ?", (user_id,)
+    ).fetchone()
+    new_country = (
+        country if country is not None else (existing["country"] if existing else None)
+    )
+    new_dashboard = (
+        dashboard
+        if dashboard is not None
+        else (existing["dashboard"] if existing else None)
+    )
+    conn.execute(
+        """
+        INSERT INTO last_viewed (user_id, country, dashboard, updated_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+            country    = excluded.country,
+            dashboard  = excluded.dashboard,
+            updated_at = excluded.updated_at
+        """,
+        (user_id, new_country, new_dashboard, now),
+    )
+    conn.commit()
+    conn.close()
