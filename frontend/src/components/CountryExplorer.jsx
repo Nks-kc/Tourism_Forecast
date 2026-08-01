@@ -15,7 +15,7 @@ const FLAG_MAP = {
   Australia: "🇦🇺", Bangladesh: "🇧🇩", Canada: "🇨🇦", China: "🇨🇳",
   France: "🇫🇷", Germany: "🇩🇪", India: "🇮🇳", Italy: "🇮🇹",
   Japan: "🇯🇵", Malaysia: "🇲🇾", Myanmar: "🇲🇲", Netherlands: "🇳🇱",
-  Others: "🌐", South_Korea: "🇰🇷", Spain: "🇪🇸", Sri_Lanka: "🇱🇰",
+  Others: "🌐", "South Korea": "🇰🇷", Spain: "🇪🇸", "Sri Lanka": "🇱🇰",
   Thailand: "🇹🇭", UK: "🇬🇧", USA: "🇺🇸",
 };
 

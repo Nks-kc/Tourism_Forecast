@@ -48,6 +48,14 @@ export function registerAccount(payload) {
   return apiRequest("/auth/register", { method: "POST", body: JSON.stringify(payload) });
 }
 
+export function sendOTP(email) {
+  return apiRequest("/auth/otp/send", { method: "POST", body: JSON.stringify({ email }) });
+}
+
+export function verifyOTP(email, otp) {
+  return apiRequest("/auth/otp/verify", { method: "POST", body: JSON.stringify({ email, otp }) });
+}
+
 export function getMe(token) {
   return apiRequest("/auth/me", { method: "GET" }, token);
 }

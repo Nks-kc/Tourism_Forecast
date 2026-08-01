@@ -23,6 +23,8 @@ import {
   getStoredSession,
   login,
   registerAccount,
+  sendOTP,
+  verifyOTP,
   storeSession
 } from "./lib/api";
 import { compactNumber } from "./lib/format";
@@ -133,10 +135,49 @@ function App() {
     }
   }
 
-  async function handleRegister(payload) {
+  async function handleRegister(payload, onSuccess) {
     try {
-      await registerAccount(payload);
-      setAccountMessage({ text: "Account created! You can sign in now." });
+      const data = await registerAccount(payload);
+      // Registration created pending record, now need to send OTP
+      const email = payload.email;
+      const otpData = await sendOTP(email);
+      
+      // Check if we're in development mode (SMTP not configured)
+      if (otpData.dev_mode && otpData.dev_otp) {
+        setAccountMessage({ 
+          text: `Development Mode: Your verification code is ${otpData.dev_otp} (Check backend console for OTP)` 
+        });
+      } else {
+        setAccountMessage({ text: "Verification code sent to your email!" });
+      }
+      onSuccess(email);
+    } catch (error) {
+      setAccountMessage({ text: error.message, error: true });
+    }
+  }
+
+  async function handleSendOTP(email) {
+    try {
+      const otpData = await sendOTP(email);
+      
+      // Check if we're in development mode
+      if (otpData.dev_mode && otpData.dev_otp) {
+        setAccountMessage({ 
+          text: `Development Mode: Your verification code is ${otpData.dev_otp} (Check backend console for OTP)` 
+        });
+      } else {
+        setAccountMessage({ text: "Verification code sent!" });
+      }
+    } catch (error) {
+      setAccountMessage({ text: error.message, error: true });
+    }
+  }
+
+  async function handleVerifyOTP(email, otp, onSuccess) {
+    try {
+      await verifyOTP(email, otp);
+      setAccountMessage({ text: "Account created successfully! You can sign in now." });
+      onSuccess();
     } catch (error) {
       setAccountMessage({ text: error.message, error: true });
     }
@@ -182,7 +223,13 @@ function App() {
     return (
       <>
         <Nav activeTab={activeTab} onTabChange={setActiveTab} username="" onLogout={() => {}} theme={theme} onThemeToggle={toggleTheme} />
-        <LoginPage onLogin={handleLogin} onRegister={handleRegister} message={accountMessage} />
+        <LoginPage 
+          onLogin={handleLogin} 
+          onRegister={handleRegister} 
+          onSendOTP={handleSendOTP}
+          onVerifyOTP={handleVerifyOTP}
+          message={accountMessage} 
+        />
       </>
     );
   }
