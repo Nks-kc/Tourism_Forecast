@@ -1,0 +1,9 @@
+Data cross-validation report
+============================================================
+External source: Nepal Tourism Statistics 2025_u19rfc9.xlsx
+Status: completed
+Months checked against aggregate totals: 372
+
+Aggregate total discrepancies (> 2 units): 0
+
+'Others' corrections applied: 0

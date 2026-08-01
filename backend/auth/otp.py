@@ -44,9 +44,7 @@ def init_otp_tables() -> None:
         )
         """
     )
-    # Lightweight migration for otp_codes tables created before rate-limiting
-    # was added -- SQLite's ALTER TABLE only supports adding columns, so this
-    # is safe to run every time (it no-ops once the columns exist).
+
     existing_columns = {
         row["name"] for row in conn.execute("PRAGMA table_info(otp_codes)")
     }
@@ -59,14 +57,10 @@ def init_otp_tables() -> None:
     conn.commit()
     conn.close()
 
-
-# --- Pending registrations -----------------------------------------------
-
-
 def create_pending_registration(username: str, email: str, password: str) -> dict:
     from auth.models import (
         get_user_by_username,
-    )  # local import avoids a circular import
+    )
 
     username = username.strip()
     email = email.strip().lower()
@@ -162,7 +156,6 @@ def send_otp(email: str, purpose: str = REGISTER_PURPOSE) -> dict:
         window_started_at = now
 
         if existing:
-            # Rule 1: can't request a new OTP while the current one is still valid.
             expires_at = datetime.fromisoformat(existing["expires_at"])
             if now <= expires_at:
                 seconds_left = max(0, int((expires_at - now).total_seconds()))

@@ -49,7 +49,7 @@ API_PORT = 5000
 NOTIFICATION_WEBHOOK_URL = os.environ.get("NOTIFICATION_WEBHOOK_URL", "")
 SECRET_KEY = "change-this-to-a-random-secret-in-production"
 JWT_SECRET_KEY = "change-this-jwt-secret-in-production"
-DATABASE_PATH = os.path.join(BASE_DIR, "users.db")
+DATABASE_PATH = os.path.join(BASE_DIR, "tourism.db")
 
 SMTP_HOST = os.environ.get("SMTP_HOST", "")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))

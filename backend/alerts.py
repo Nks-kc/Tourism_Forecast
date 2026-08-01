@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, timezone
 
 import pandas as pd
 from data_store import load_country_arrivals
@@ -99,7 +99,7 @@ def check_seasonal_peak(user_id: int, country: str, lookahead_days: int) -> dict
     peak_month = _peak_month_for_country(country)
     if peak_month is None:
         return None
-    days_away = _days_until_next_occurrence(peak_month, date.today())
+    days_away = _days_until_next_occurrence(peak_month, date.today(timezone.utc))  # noqa: DTZ011
     if days_away > lookahead_days:
         return None
     month_name = pd.Timestamp(2000, peak_month, 1).strftime("%B")
