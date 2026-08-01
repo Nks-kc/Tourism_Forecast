@@ -17,6 +17,7 @@ export default defineConfig({
       "/compare":   "http://127.0.0.1:5000",
       "/countries": "http://127.0.0.1:5000",
       "/admin":     "http://127.0.0.1:5000",
+      "/watchlist": "http://127.0.0.1:5000",
     }
   }
 });

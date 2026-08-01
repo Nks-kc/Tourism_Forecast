@@ -126,3 +126,22 @@ export function adminSetUserRole(token, username, role) {
     token
   );
 }
+
+// ── Watchlist (auth required) ─────────────────────────────────
+export function getWatchlist(token) {
+  return apiRequest("/watchlist", { method: "GET" }, token);
+}
+
+export function pinCountry(country, token) {
+  return apiRequest("/watchlist/pin", {
+    method: "POST",
+    body: JSON.stringify({ country }),
+  }, token);
+}
+
+export function unpinCountry(country, token) {
+  return apiRequest("/watchlist/unpin", {
+    method: "DELETE",
+    body: JSON.stringify({ country }),
+  }, token);
+}

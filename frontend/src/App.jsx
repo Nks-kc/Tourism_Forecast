@@ -192,7 +192,7 @@ function App() {
     <>
       <Nav activeTab={activeTab} onTabChange={setActiveTab} username={session.username} role={session.role} onLogout={() => handleLogout()} theme={theme} onThemeToggle={toggleTheme} />
       {activeTab === "dashboard" && <Header {...heroStats} bestModel={bestModel} forecastLoading={forecastLoading} />}
-      <main className="section">
+      <main className={`section${activeTab === "countries" ? " section--wide" : ""}`}>
         {activeTab === "dashboard" && (
           <>
             <ForecastPanel

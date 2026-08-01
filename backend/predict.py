@@ -108,12 +108,22 @@ def predict_country(
     results = {}
     for model_key in AVAILABLE_MODELS:
         display_name = MODEL_DISPLAY_NAMES[model_key]
-        values = forecast(model_name=model_key, country=country, horizon=horizon)
-        values = [max(0.0, float(v)) for v in values]
-        results[display_name] = {
-            "months": months,
-            "arrivals": [round(v, 2) for v in values],
-        }
+        try:
+            values = forecast(model_name=model_key, country=country, horizon=horizon)
+            values = [max(0.0, float(v)) for v in values]
+            results[display_name] = {
+                "months": months,
+                "arrivals": [round(v, 2) for v in values],
+            }
+        except Exception as exc:  # noqa: BLE001  # intentional: any model failure must not abort the loop
+            import logging
+            logging.getLogger(__name__).warning(
+                "Skipping model '%s' for country '%s': %s", display_name, country, exc
+            )
+    if not results:
+        raise RuntimeError(
+            f"All models failed to generate forecasts for '{country}'. Run 'python train.py' to retrain."
+        )
     if save_to_disk:
         rows = [
             {"month": month, **{name: results[name]["arrivals"][i] for name in results}}

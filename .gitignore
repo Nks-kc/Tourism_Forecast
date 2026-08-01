@@ -116,3 +116,5 @@ temp/
 *.tmp
 *.bak
 *.orig
+.kiro/
+backend/data/interim/

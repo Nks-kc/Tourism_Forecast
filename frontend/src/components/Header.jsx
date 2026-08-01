@@ -1,6 +1,6 @@
 import AnimatedCounter from "./AnimatedCounter";
 
-// Derive next month label (e.g. "August 2026") from current date
+// Derive next month label (e.g. "September 2026") from current date
 function nextMonthLabel() {
   const d = new Date();
   d.setMonth(d.getMonth() + 1);
@@ -18,7 +18,7 @@ export default function Header({ nextArrival, bestMape, datasetLastMonth, bestMo
         {/* Left — eyebrow + big number */}
         <div className="hero-focal">
           <div className="hero-eyebrow">
-            <span className="hero-eyebrow-dot" />
+            <span/>
             Next month forecast
           </div>
 

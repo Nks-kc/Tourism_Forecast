@@ -10,6 +10,8 @@ import pandas as pd
 import requests
 from auth.models import init_db
 from auth.routes import auth_bp, role_required, token_required
+from watchlist.models import init_watchlist_table
+from watchlist.routes import watchlist_bp
 from config import (
     API_HOST,
     API_PORT,
@@ -35,7 +37,9 @@ CORS(app)
 app.config["SECRET_KEY"] = SECRET_KEY
 app.config["JWT_SECRET_KEY"] = JWT_SECRET_KEY
 app.register_blueprint(auth_bp)
+app.register_blueprint(watchlist_bp)
 init_db()
+init_watchlist_table()
 FRONTEND_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "frontend")
 )

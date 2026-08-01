@@ -1,6 +1,7 @@
 import pytest
 from api import app
 from auth.models import init_db
+from watchlist.models import init_watchlist_table
 import pandas as pd
 
 
@@ -8,6 +9,7 @@ import pandas as pd
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr("config.DATABASE_PATH", str(tmp_path / "test.db"))
     init_db()
+    init_watchlist_table()
     app.config["TESTING"] = True
     return app.test_client()
 
