@@ -30,7 +30,7 @@ def generate(current_user):
         return (jsonify({"error": "'horizon' must be a positive integer."}), 400)
 
     if report_type == "watchlist":
-        countries = [row["country"] for row in get_watchlist(current_user["user_id"])]
+        countries = get_watchlist(current_user["user_id"])
         if not countries:
             return (jsonify({"error": "Your watchlist is empty."}), 400)
     else:

@@ -10,21 +10,18 @@ import {
 
 const HORIZONS = [1, 3, 6, 12];
 
-export default function ReportsPanel({ session, theme }) {
+export default function ReportsPanel({ session }) {
   const [reports, setReports] = useState([]);
   const [reportsLoading, setReportsLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState({ text: "", error: false });
 
-  // Generation form state
-  const [countries, setCountries] = useState([]);
   const [availableCountries, setAvailableCountries] = useState([]);
   const [selectedCountries, setSelectedCountries] = useState([]);
   const [horizon, setHorizon] = useState(6);
   const [watchlist, setWatchlist] = useState([]);
   const [downloadingId, setDownloadingId] = useState(null);
 
-  // Load reports on mount
   useEffect(() => {
     if (session?.token) {
       loadReports();
@@ -48,34 +45,31 @@ export default function ReportsPanel({ session, theme }) {
   async function loadCountries() {
     try {
       const data = await getCountries();
-      setCountries(data.countries || []);
       setAvailableCountries(data.countries || []);
-    } catch (error) {
-      console.error("Failed to load countries:", error);
+    } catch {
+      // silently ignore
     }
   }
 
   async function loadWatchlist() {
     try {
       const data = await getWatchlist(session.token);
-      setWatchlist(data.watchlist?.map((w) => w.country) || []);
-    } catch (error) {
-      console.error("Failed to load watchlist:", error);
+      setWatchlist(data.watchlist?.map((w) => w.country ?? w) || []);
+    } catch {
+      // silently ignore
     }
   }
 
-  async function handleGenerateReport() {
+  async function handleGenerate() {
     if (selectedCountries.length === 0) {
-      setMessage({ text: "Please select at least one country", error: true });
+      setMessage({ text: "Select at least one country to generate a report.", error: true });
       return;
     }
-
     setGenerating(true);
-    setMessage({ text: "Generating report..." });
-
+    setMessage({ text: "" });
     try {
-      const data = await generateReport(selectedCountries, horizon, session.token);
-      setMessage({ text: "Report generated successfully!" });
+      await generateReport(selectedCountries, horizon, session.token);
+      setMessage({ text: "Report generated successfully.", error: false });
       setSelectedCountries([]);
       loadReports();
     } catch (error) {
@@ -85,18 +79,16 @@ export default function ReportsPanel({ session, theme }) {
     }
   }
 
-  async function handleGenerateWatchlistReport() {
+  async function handleGenerateWatchlist() {
     if (watchlist.length === 0) {
       setMessage({ text: "Your watchlist is empty. Pin some countries first.", error: true });
       return;
     }
-
     setGenerating(true);
-    setMessage({ text: "Generating watchlist report..." });
-
+    setMessage({ text: "" });
     try {
-      const data = await generateWatchlistReport(horizon, session.token);
-      setMessage({ text: "Watchlist report generated successfully!" });
+      await generateWatchlistReport(horizon, session.token);
+      setMessage({ text: "Watchlist report generated.", error: false });
       loadReports();
     } catch (error) {
       setMessage({ text: error.message, error: true });
@@ -117,7 +109,6 @@ export default function ReportsPanel({ session, theme }) {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      setMessage({ text: "Report downloaded successfully!" });
     } catch (error) {
       setMessage({ text: error.message, error: true });
     } finally {
@@ -125,93 +116,72 @@ export default function ReportsPanel({ session, theme }) {
     }
   }
 
-  function toggleCountrySelection(country) {
-    if (selectedCountries.includes(country)) {
-      setSelectedCountries(selectedCountries.filter((c) => c !== country));
-    } else {
-      setSelectedCountries([...selectedCountries, country]);
-    }
-  }
-
-  function selectAllCountries() {
-    setSelectedCountries([...availableCountries]);
-  }
-
-  function clearSelection() {
-    setSelectedCountries([]);
-  }
-
-  function selectWatchlistCountries() {
-    setSelectedCountries([...watchlist]);
+  function toggle(country) {
+    setSelectedCountries((prev) =>
+      prev.includes(country) ? prev.filter((c) => c !== country) : [...prev, country]
+    );
   }
 
   return (
     <div className="reports-panel">
-      {/* Generation Section */}
+
+      {/* ── Generate ── */}
       <section className="panel">
         <div className="panel-head">
-          <span className="panel-title">Generate New Report</span>
-          <span className="section-meta">Create PDF forecast reports</span>
+          <span className="panel-title">Generate Report</span>
+          <span className="section-meta">PDF · Multi-model forecast</span>
         </div>
 
         {message.text && (
-          <div className={`report-message ${message.error ? "error" : ""}`}>
+          <div className={`report-message${message.error ? " error" : ""}`}>
             {message.text}
           </div>
         )}
 
-        {/* Horizon Selector */}
-        <div className="report-form-row">
-          <label className="report-label">
-            <span>Forecast Horizon</span>
-            <div className="chip-group">
-              {HORIZONS.map((h) => (
-                <button
-                  key={h}
-                  className={`chip${horizon === h ? " active" : ""}`}
-                  type="button"
-                  onClick={() => setHorizon(h)}
-                >
-                  {h} {h === 1 ? "month" : "months"}
-                </button>
-              ))}
-            </div>
-          </label>
+        {/* Horizon */}
+        <div className="report-field">
+          <span className="report-field-label">Forecast horizon</span>
+          <div className="chip-group">
+            {HORIZONS.map((h) => (
+              <button
+                key={h}
+                className={`chip${horizon === h ? " active" : ""}`}
+                type="button"
+                onClick={() => setHorizon(h)}
+              >
+                {h} {h === 1 ? "month" : "months"}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="report-quick-actions">
-          <button
-            className="primary-btn"
-            type="button"
-            disabled={generating || watchlist.length === 0}
-            onClick={handleGenerateWatchlistReport}
-          >
-            {generating ? (
-              <>
-                <span className="regen-spinner" />
-                Generating...
-              </>
-            ) : (
-              <>📌 Generate from Watchlist ({watchlist.length})</>
-            )}
-          </button>
-          <span className="report-divider">or</span>
-          <span className="report-hint">Select specific countries below</span>
-        </div>
-
-        {/* Country Selection */}
-        <div className="report-country-selection">
+        {/* Country selection */}
+        <div className="report-field">
           <div className="report-selection-header">
-            <span className="report-label">Select Countries ({selectedCountries.length} selected)</span>
+            <span className="report-field-label">
+              Countries
+              {selectedCountries.length > 0 && (
+                <span className="report-selected-count">{selectedCountries.length} selected</span>
+              )}
+            </span>
             <div className="report-selection-actions">
-              <button type="button" className="report-action-btn" onClick={selectAllCountries}>
-                Select All
+              <button type="button" className="report-action-btn" onClick={() => setSelectedCountries([...availableCountries])}>
+                All
               </button>
-              <button type="button" className="report-action-btn" onClick={selectWatchlistCountries} disabled={watchlist.length === 0}>
-                Select Watchlist
+              <button
+                type="button"
+                className="report-action-btn"
+                onClick={() => setSelectedCountries([...watchlist])}
+                disabled={watchlist.length === 0}
+              >
+                Watchlist
               </button>
-              <button type="button" className="report-action-btn" onClick={clearSelection}>
+              <button
+                type="button"
+                className="report-action-btn report-action-btn--muted"
+                onClick={() => setSelectedCountries([])}
+                disabled={selectedCountries.length === 0}
+              >
                 Clear
               </button>
             </div>
@@ -219,11 +189,11 @@ export default function ReportsPanel({ session, theme }) {
 
           <div className="report-country-grid">
             {availableCountries.map((country) => (
-              <label key={country} className="report-country-checkbox">
+              <label key={country} className={`report-country-item${selectedCountries.includes(country) ? " selected" : ""}`}>
                 <input
                   type="checkbox"
                   checked={selectedCountries.includes(country)}
-                  onChange={() => toggleCountrySelection(country)}
+                  onChange={() => toggle(country)}
                 />
                 <span>{country.replace(/_/g, " ")}</span>
               </label>
@@ -231,77 +201,75 @@ export default function ReportsPanel({ session, theme }) {
           </div>
         </div>
 
-        {/* Generate Button */}
-        <button
-          className="primary-btn report-generate-btn"
-          type="button"
-          disabled={generating || selectedCountries.length === 0}
-          onClick={handleGenerateReport}
-        >
-          {generating ? (
-            <>
-              <span className="regen-spinner" />
-              Generating Report...
-            </>
-          ) : (
-            <>📄 Generate Report</>
+        {/* Actions */}
+        <div className="report-actions">
+          <button
+            className="primary-btn report-generate-btn"
+            type="button"
+            disabled={generating || selectedCountries.length === 0}
+            onClick={handleGenerate}
+          >
+            {generating ? <><span className="regen-spinner" /> Generating…</> : "Generate Report"}
+          </button>
+          {watchlist.length > 0 && (
+            <button
+              className="ghost-btn"
+              type="button"
+              disabled={generating}
+              onClick={handleGenerateWatchlist}
+            >
+              From Watchlist ({watchlist.length})
+            </button>
           )}
-        </button>
+        </div>
       </section>
 
-      {/* Reports List Section */}
+      {/* ── History ── */}
       <section className="panel">
         <div className="panel-head">
           <span className="panel-title">Generated Reports</span>
           <span className="section-meta">
-            {reportsLoading ? "Loading..." : `${reports.length} report${reports.length !== 1 ? "s" : ""}`}
+            {reportsLoading ? "Loading…" : `${reports.length} ${reports.length === 1 ? "report" : "reports"}`}
           </span>
         </div>
 
         {reportsLoading ? (
           <div className="report-loading">
             <span className="regen-spinner" />
-            <span>Loading reports...</span>
+            <span>Loading…</span>
           </div>
         ) : reports.length === 0 ? (
-          <div className="empty">
-            No reports generated yet. Create your first report above!
-          </div>
+          <div className="empty">No reports yet. Generate one above.</div>
         ) : (
           <div className="reports-list">
             {reports.map((report) => (
               <article key={report.id} className="report-card">
-                <div className="report-card-header">
-                  <div className="report-card-title">
-                    <span className="report-card-icon">📊</span>
-                    <div>
-                      <div className="report-card-name">
-                        {report.countries.join(", ").replace(/_/g, " ")}
-                      </div>
-                      <div className="report-card-meta">
-                        Report #{report.id} · {report.report_type}
-                      </div>
+                <div className="report-card-body">
+                  <div className="report-card-info">
+                    <div className="report-card-name">
+                      {report.countries.join(", ").replace(/_/g, " ")}
+                    </div>
+                    <div className="report-card-meta">
+                      {new Date(report.generated_at).toLocaleString("en-US", {
+                        year: "numeric", month: "short", day: "numeric",
+                        hour: "2-digit", minute: "2-digit",
+                      })}
+                      <span className="report-card-dot" />
+                      {report.countries.length} {report.countries.length === 1 ? "country" : "countries"}
+                      <span className="report-card-dot" />
+                      {report.report_type}
                     </div>
                   </div>
                   <button
-                    className="primary-btn report-download-btn"
+                    className="ghost-btn report-download-btn"
                     type="button"
                     disabled={downloadingId === report.id}
                     onClick={() => handleDownload(report.id, report.countries)}
                   >
-                    {downloadingId === report.id ? (
-                      <>
-                        <span className="regen-spinner" />
-                        Downloading...
-                      </>
-                    ) : (
-                      <>⬇ Download PDF</>
-                    )}
+                    {downloadingId === report.id
+                      ? <><span className="regen-spinner" /> Downloading…</>
+                      : "Download PDF"}
                   </button>
-                </div>
-                <div className="report-card-footer">
-                  <span>Generated: {new Date(report.generated_at).toLocaleString()}</span>
-                  <span>{report.countries.length} {report.countries.length === 1 ? "country" : "countries"}</span>
                 </div>
               </article>
             ))}
