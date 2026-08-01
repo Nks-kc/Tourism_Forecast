@@ -9,12 +9,15 @@ from functools import lru_cache
 import pandas as pd
 import requests
 from auth.models import init_db
+from auth.otp import init_otp_tables as init_auth_otp_tables
 from auth.routes import auth_bp, role_required, token_required
 from watchlist.models import init_watchlist_table
 from watchlist.routes import watchlist_bp
 from config import (
+    ALERT_SCAN_INTERVAL_MINUTES,
     API_HOST,
     API_PORT,
+    ENABLE_ALERT_SCHEDULER,
     JWT_SECRET_KEY,
     NOTIFICATION_WEBHOOK_URL,
     SAVED_MODELS_DIR,
@@ -29,8 +32,22 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from forecasting.forecast import forecast, get_dataset_last_date
 from forecasting.utils import next_month
+from notifications import init_notification_tables
+from notifications_routes import notifications_bp
 from predict import predict_country as predict_country_forecast
 from predict import predict_total
+from preferences import get_preferences, init_preferences_table
+from preferences_routes import preferences_bp
+from report_store import init_reports_table
+from reports_routes import reports_bp
+from scheduler import running_under_pytest, start_scheduler
+from watchlist import (
+    get_last_viewed,
+    get_watchlist,
+    init_watchlist_tables,
+    set_last_viewed,
+)
+from watchlist_routes import watchlist_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -38,7 +55,19 @@ app.config["SECRET_KEY"] = SECRET_KEY
 app.config["JWT_SECRET_KEY"] = JWT_SECRET_KEY
 app.register_blueprint(auth_bp)
 app.register_blueprint(watchlist_bp)
+app.register_blueprint(preferences_bp)
+app.register_blueprint(notifications_bp)
+app.register_blueprint(reports_bp)
+app.register_blueprint(watchlist_bp)
 init_db()
+init_auth_otp_tables()
+init_watchlist_tables()
+init_preferences_table()
+init_notification_tables()
+init_reports_table()
+
+if ENABLE_ALERT_SCHEDULER and not running_under_pytest():
+    start_scheduler(ALERT_SCAN_INTERVAL_MINUTES)
 init_watchlist_table()
 FRONTEND_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "frontend")
@@ -343,16 +372,12 @@ def history():
 @app.route("/predict", methods=["POST"])
 @token_required
 def predict(current_user):
-    body = request.get_json(silent=True)
-    if not body or "horizon" not in body:
-        return (
-            jsonify(
-                {"error": "Body must contain 'horizon'. Example: {\"horizon\": 3}"}
-            ),
-            400,
-        )
+    body = request.get_json(silent=True) or {}
+    prefs = get_preferences(current_user["user_id"])
+    # 'horizon' may be omitted -- falls back to the user's saved preference.
+    horizon_raw = body["horizon"] if "horizon" in body else prefs["default_horizon"]
     try:
-        horizon = int(body["horizon"])
+        horizon = int(horizon_raw)
     except (ValueError, TypeError):
         return (jsonify({"error": "'horizon' must be an integer."}), 400)
     if horizon not in ALLOWED_HORIZONS:
@@ -361,6 +386,8 @@ def predict(current_user):
             400,
         )
     country = body.get("country") or None
+    if country:
+        set_last_viewed(current_user["user_id"], country=country)
     try:
         if country is not None:
             predictions = predict_country_forecast(country, horizon)
@@ -431,6 +458,76 @@ def countries():
         KeyError,
     ) as e:
         return (jsonify({"error": str(e)}), 500)
+
+
+def _forecast_summary_for_country(country: str, horizon: int) -> dict | None:
+    """A lightweight forecast summary (one model) for dashboard cards."""
+    try:
+        last_date = get_dataset_last_date()
+        months = _future_month_labels_from(last_date, horizon)
+        values = forecast(model_name="sarima", country=country, horizon=horizon)
+        arrivals = [round(max(0.0, float(v)), 2) for v in values]
+        return {
+            "country": country,
+            "horizon": horizon,
+            "months": months,
+            "arrivals": arrivals,
+        }
+    except (
+        FileNotFoundError,
+        EOFError,
+        AttributeError,
+        ModuleNotFoundError,
+        ImportError,
+        ValueError,
+        KeyError,
+    ):
+        return {
+            "country": country,
+            "horizon": horizon,
+            "error": "Forecast unavailable.",
+        }
+
+
+@app.route("/dashboard", methods=["GET"])
+@token_required
+def dashboard(current_user):
+    prefs = get_preferences(current_user["user_id"])
+    horizon = prefs["default_horizon"]
+    watchlist = get_watchlist(current_user["user_id"])
+
+    if watchlist:
+        countries_to_show = [row["country"] for row in watchlist]
+        summaries = [
+            _forecast_summary_for_country(c, horizon) for c in countries_to_show
+        ]
+        return jsonify(
+            {
+                "mode": "watchlist",
+                "watchlist": watchlist,
+                "forecast_summaries": summaries,
+            }
+        )
+
+    last_viewed = get_last_viewed(current_user["user_id"])
+    if last_viewed and last_viewed.get("country"):
+        summary = _forecast_summary_for_country(last_viewed["country"], horizon)
+        return jsonify(
+            {
+                "mode": "last_viewed",
+                "last_viewed": last_viewed,
+                "forecast_summaries": [summary],
+            }
+        )
+
+    return jsonify(
+        {
+            "mode": "empty",
+            "message": "No watchlist countries and no previously viewed country yet. "
+            "Add a country to your watchlist or request a forecast to personalize your dashboard.",
+            "forecast_summaries": [],
+        }
+    )
 
 
 @lru_cache(maxsize=64)
@@ -540,13 +637,13 @@ def _future_month_labels_from(last_date, horizon: int) -> list:
 @token_required
 def predict_country(current_user):
     body = request.get_json(silent=True)
-    if not body or "horizon" not in body or "country" not in body:
-        return (
-            jsonify({"error": "Body must contain 'country' and 'horizon'."}),
-            400,
-        )
+    if not body or "country" not in body:
+        return (jsonify({"error": "Body must contain 'country'."}), 400)
+    prefs = get_preferences(current_user["user_id"])
+    # 'horizon' may be omitted -- falls back to the user's saved preference.
+    horizon_raw = body["horizon"] if "horizon" in body else prefs["default_horizon"]
     try:
-        horizon = int(body["horizon"])
+        horizon = int(horizon_raw)
     except (ValueError, TypeError):
         return (jsonify({"error": "'horizon' must be an integer."}), 400)
     if horizon not in ALLOWED_HORIZONS:
@@ -557,6 +654,7 @@ def predict_country(current_user):
     country = str(body["country"]).strip()
     if not country:
         return (jsonify({"error": "'country' must be a non-empty string."}), 400)
+    set_last_viewed(current_user["user_id"], country=country)
 
     try:
         last_date = get_dataset_last_date()

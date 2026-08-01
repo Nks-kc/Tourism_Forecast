@@ -9,7 +9,14 @@ import time
 from flask import Blueprint, current_app, jsonify, request
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from auth.models import authenticate_user, create_user, get_user_by_username
+from auth.models import authenticate_user, create_user_from_hash, get_user_by_username
+from auth.otp import (
+    create_pending_registration,
+    delete_pending_registration,
+    get_pending_registration,
+    send_otp,
+    verify_otp,
+)
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 TOKEN_EXPIRY_HOURS = 24
@@ -129,11 +136,76 @@ def register():
         return (jsonify({"error": "Password is required."}), 400)
     if len(password) < 6:
         return (jsonify({"error": "Password must be at least 6 characters."}), 400)
-    result = create_user(username, email, password)
+
+    # Nothing is written to `users` yet -- the account is only created once
+    # the email is verified via OTP (see /auth/otp/send and /auth/otp/verify).
+    result = create_pending_registration(username, email, password)
     if not result["ok"]:
         return (jsonify({"error": result["error"]}), 409)
     return (
-        jsonify({"message": "Account created successfully.", "username": username}),
+        jsonify(
+            {
+                "message": "Registration details received. Verify your email to finish "
+                "creating your account: call POST /auth/otp/send, then POST "
+                "/auth/otp/verify with the code you receive.",
+                "email": result["email"],
+            }
+        ),
+        202,
+    )
+
+
+@auth_bp.route("/otp/send", methods=["POST"])
+def otp_send():
+    body = request.get_json(silent=True)
+    if not body or "email" not in body:
+        return (jsonify({"error": "Body must contain 'email'."}), 400)
+    result = send_otp(str(body["email"]))
+    if not result["ok"]:
+        status = (
+            429 if result.get("reason") in ("otp_still_valid", "rate_limited") else 404
+        )
+        payload = {"error": result["error"]}
+        if "retry_after" in result:
+            payload["retry_after"] = result["retry_after"]
+        return (jsonify(payload), status)
+    return jsonify(
+        {"message": "OTP sent to your email.", "expires_in": result["expires_in"]}
+    )
+
+
+@auth_bp.route("/otp/verify", methods=["POST"])
+def otp_verify():
+    body = request.get_json(silent=True)
+    if not body or "email" not in body or "otp" not in body:
+        return (jsonify({"error": "Body must contain 'email' and 'otp'."}), 400)
+    email = str(body["email"]).strip().lower()
+
+    result = verify_otp(email, body["otp"])
+    if not result["ok"]:
+        return (jsonify({"error": result["error"]}), 400)
+
+    pending = get_pending_registration(email)
+    if not pending:
+        return (
+            jsonify({"error": "Pending registration not found or already completed."}),
+            404,
+        )
+
+    creation = create_user_from_hash(
+        pending["username"], pending["email"], pending["password"]
+    )
+    if not creation["ok"]:
+        return (jsonify({"error": creation["error"]}), 409)
+    delete_pending_registration(email)
+
+    return (
+        jsonify(
+            {
+                "message": "Account created successfully.",
+                "username": pending["username"],
+            }
+        ),
         201,
     )
 
@@ -176,9 +248,6 @@ def login():
 @auth_bp.route("/me", methods=["GET"])
 @token_required
 def me(current_user):
-    # Read the role fresh from the database rather than trusting the token
-    # payload, so a demoted user immediately sees (and is granted) their
-    # correct, current role instead of whatever role they had at login time.
     db_user = get_user_by_username(current_user.get("username", ""))
     if not db_user:
         return (

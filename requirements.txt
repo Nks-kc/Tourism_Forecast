@@ -4,5 +4,9 @@ numpy
 pandas
 scikit-learn
 statsmodels
+python-dotenv
+reportlab
+apscheduler
+requests
 hypothesis
 openpyxl
