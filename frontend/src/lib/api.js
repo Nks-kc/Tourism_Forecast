@@ -153,3 +153,32 @@ export function unpinCountry(country, token) {
     body: JSON.stringify({ country }),
   }, token);
 }
+
+// ── Reports ───────────────────────────────────────────────────
+export function generateReport(countries, horizon, token) {
+  return apiRequest("/reports/generate", {
+    method: "POST",
+    body: JSON.stringify({ countries, horizon })
+  }, token);
+}
+
+export function generateWatchlistReport(horizon, token) {
+  return apiRequest("/reports/generate", {
+    method: "POST",
+    body: JSON.stringify({ type: "watchlist", horizon })
+  }, token);
+}
+
+export function listReports(token) {
+  return apiRequest("/reports", { method: "GET" }, token);
+}
+
+export async function downloadReport(reportId, token) {
+  const headers = { Authorization: `Bearer ${token}` };
+  const response = await fetch(`/reports/${reportId}/download`, { headers });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "Download failed" }));
+    throw new Error(error.error || "Download failed");
+  }
+  return response.blob();
+}

@@ -4,6 +4,7 @@ import ThemeToggle from "./ThemeToggle";
 const authedTabs = [
   ["dashboard", "Dashboard"],
   ["countries", "Countries"],
+  ["reports", "Reports"],
   ["models", "Models"],
   ["about", "About"],
 ];

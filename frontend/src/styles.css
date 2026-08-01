@@ -2094,3 +2094,267 @@ footer {
 .otp-actions .login-link {
   font-size: 13px;
 }
+
+/* ── Reports Panel ──────────────────────────────────────── */
+.reports-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.report-message {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--teal-dim);
+  color: var(--teal);
+  font-size: 13px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(80, 184, 152, 0.3);
+}
+
+.report-message.error {
+  background: rgba(224, 96, 96, 0.1);
+  color: var(--red);
+  border-color: rgba(224, 96, 96, 0.3);
+}
+
+.report-form-row {
+  margin-bottom: 20px;
+}
+
+.report-label {
+  display: block;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.report-label span {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.report-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.report-divider {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.report-hint {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.report-country-selection {
+  margin-bottom: 20px;
+}
+
+.report-selection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.report-selection-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.report-action-btn {
+  border: 0;
+  background: transparent;
+  color: var(--teal);
+  cursor: pointer;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+
+.report-action-btn:hover:not(:disabled) {
+  background: var(--teal-dim);
+}
+
+.report-action-btn:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.report-country-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  padding: 14px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.report-country-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition);
+  font-size: 13px;
+}
+
+.report-country-checkbox:hover {
+  background: var(--bg3);
+}
+
+.report-country-checkbox input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
+  margin: 0;
+}
+
+.report-generate-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Reports List */
+.report-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 13px;
+  justify-content: center;
+}
+
+.reports-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.report-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg2);
+  padding: 16px 18px;
+  transition: border-color var(--transition);
+}
+
+.report-card:hover {
+  border-color: var(--border2);
+}
+
+.report-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.report-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.report-card-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.report-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.report-card-meta {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+.report-download-btn {
+  min-height: 36px;
+  padding: 6px 14px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.report-card-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--muted);
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 768px) {
+  .report-quick-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .report-quick-actions .primary-btn {
+    width: 100%;
+  }
+
+  .report-divider {
+    text-align: center;
+  }
+
+  .report-selection-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .report-country-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .report-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .report-download-btn {
+    width: 100%;
+  }
+}

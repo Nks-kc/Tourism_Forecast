@@ -13,6 +13,7 @@ import SeasonalDonutChart from "./components/SeasonalDonutChart";
 import MonthlyAverageChart from "./components/MonthlyAverageChart";
 import AnimatedCounter from "./components/AnimatedCounter";
 import CountryExplorer from "./components/CountryExplorer";
+import ReportsPanel from "./components/ReportsPanel";
 import {
   clearSession,
   getHealth,
@@ -292,6 +293,10 @@ function App() {
 
         {activeTab === "countries" && (
           <CountryExplorer session={session} theme={theme} />
+        )}
+
+        {activeTab === "reports" && (
+          <ReportsPanel session={session} theme={theme} />
         )}
 
         {activeTab === "models" && <ModelsPanel metrics={metrics} bestModel={bestModel} />}
