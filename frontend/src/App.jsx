@@ -39,7 +39,7 @@ function App() {
   const [historyFilters, setHistoryFilters] = useState({ start_year: "2016", end_year: "2026", season: "all" });
   const [history, setHistory] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [horizon, setHorizon] = useState(3);
+  const [horizon, setHorizon] = useState(12);
   const [predictions, setPredictions] = useState({});
   const [forecastLoading, setForecastLoading] = useState(false);
   const [metrics, setMetrics] = useState({});
@@ -68,11 +68,25 @@ function App() {
 
   const heroStats = useMemo(() => {
     const firstModel = predictions.SARIMA || Object.values(predictions)[0];
-    const nextArrival = firstModel?.arrivals?.[0] || null;
+
+    // Always target the real next calendar month (e.g. "2026-09")
+    const now = new Date();
+    const target = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const targetYM = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}`;
+
+    // Find that month's index inside the backend forecast array
+    const months = firstModel?.months || [];
+    const idx = months.indexOf(targetYM);
+
+    // Only show a value if the current horizon actually covers next month
+    const nextArrival = idx >= 0 ? (firstModel?.arrivals?.[idx] ?? null) : null;
+    // nextMonthFromData drives the Header label; null → Header falls back to browser clock
+    const nextMonthFromData = idx >= 0 ? targetYM : null;
+
     const totalForecast = firstModel?.arrivals?.reduce((sum, value) => sum + Number(value), 0) || null;
     const bestMape = bestModel ? metrics[bestModel].MAPE : null;
     const datasetLastMonth = history?.records?.at(-1)?.date || null;
-    return { nextArrival, totalForecast, bestMape, datasetLastMonth };
+    return { nextArrival, nextMonthFromData, totalForecast, bestMape, datasetLastMonth };
   }, [predictions, bestModel, metrics, history]);
 
   // Health check

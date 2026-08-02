@@ -1,14 +1,20 @@
 import AnimatedCounter from "./AnimatedCounter";
 
-// Derive next month label (e.g. "September 2026") from current date
-function nextMonthLabel() {
+// Derive a human-readable month label from a "YYYY-MM" string (e.g. "2026-08" → "August 2026")
+function labelFromYearMonth(ym) {
+  const [year, month] = ym.split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+}
+
+// Fallback: derive next month label from the browser clock
+function nextMonthLabelFallback() {
   const d = new Date();
   d.setMonth(d.getMonth() + 1);
   return d.toLocaleString("en-US", { month: "long", year: "numeric" });
 }
 
-export default function Header({ nextArrival, bestMape, datasetLastMonth, bestModel, forecastLoading }) {
-  const monthLabel = nextMonthLabel();
+export default function Header({ nextArrival, nextMonthFromData, bestMape, datasetLastMonth, bestModel, forecastLoading }) {
+  const monthLabel = nextMonthFromData ? labelFromYearMonth(nextMonthFromData) : nextMonthLabelFallback();
   const hasData = nextArrival !== null && nextArrival !== undefined;
 
   return (
